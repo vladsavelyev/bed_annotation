@@ -241,9 +241,6 @@ def choose_canonical(genes, canonical_transcripts_ids):
 
     canon_genes = []
     for g in genes:
-        if g.name == 'GAGE12G':
-            pass
-
         _canon_tx = []
         for t in g.transcripts:
             if t.transcript_id in canonical_transcripts_ids:

@@ -11,16 +11,21 @@ def check_genome(genome):
     if genome not in SUPPORTED_GENOMES:
         critical('Genome ' + genome + ' is not supported. Supported genomes: ' + ', '.join(SUPPORTED_GENOMES))
 
-def get_features_for_annotation(genome):  # used to annotate BED files
-    return get_all_features_canonical(genome)
+def get_all_features(genome):
+    return _get_refseq('all_features.{genome}.bed', genome)
 
-def get_features_for_targqc(genome):  # used to report in regional TargQC reports
-    return get_all_features_canonical(genome)
+# ncRNA and protein coding CDS, Exons, Gene and Transcript features - only for canonical tracnscripts
+# - used to annotate BED files
+# - used to report in regional TargQC reports
+def get_all_features_canonical(genome):
+    return _get_refseq('all_features.{genome}.canon.bed', genome)
 
-def get_cds(genome):  # CDS for canonical transcripts, used as TargQC target when no BED available
+# CDS for canonical transcripts, used as TargQC target when no BED available
+def get_cds(genome):
     return _get_refseq('CDS.{genome}.bed', genome)
 
-def get_seq2c_cds(genome):  # CDS for canonical transcripts, one transcripts only for a gene. Used for Seq2C CNV calling
+# CDS for canonical transcripts, one transcripts only for a gene. Used for Seq2C CNV calling
+def get_seq2c_cds(genome):
     return _get_refseq('Seq2C_CDS.{genome}.bed', genome)
 
     # features:                 /ngs/reference_data/genomes/Hsapiens/hg19/bed/Exons/RefSeq/
@@ -48,12 +53,6 @@ def get_seq2c_cds(genome):  # CDS for canonical transcripts, one transcripts onl
 #   Transcripts.bed
 #   Genes.bed
 #   CDS_miRNA.all_features.canon.bed
-
-def get_all_features(genome):
-    return _get_refseq('all_features.{genome}.bed', genome)
-
-def get_all_features_canonical(genome):  # ncRNA and protein coding CDS, Exons, Gene and Transcript features - only for canonical tracnscripts
-    return _get_refseq('all_features.{genome}.canon.bed', genome)
 
 def get_hgnc_gene_synonyms():
     return _get_refseq('HGNC_gene_synonyms.txt')
