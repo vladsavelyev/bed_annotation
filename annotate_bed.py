@@ -9,7 +9,7 @@ from Utils.Region import SortableByChrom
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
 from Utils.bam_bed_utils import verify_bed
-from Utils.file_utils import verify_file
+from Utils.file_utils import verify_file, file_transaction
 from Utils.logger import critical, info
 
 
@@ -110,9 +110,10 @@ def annotate(input_bed_fpath, features_fpath, output_fpath, reuse=False):
         annotated.extend(off_targets)
 
     info('Saving annotated regions...')
-    with open(output_fpath, 'w') as out:
-        for region in sorted(annotated, key=lambda r: r.get_key()):
-            out.write(str(region))
+    with file_transaction(None, output_fpath) as tx:
+        with open(tx, 'w') as out:
+            for region in sorted(annotated, key=lambda r: r.get_key()):
+                out.write(str(region))
     return output_fpath
 
 
