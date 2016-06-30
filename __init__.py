@@ -28,22 +28,8 @@ def get_cds(genome):
 def get_seq2c_cds(genome):
     return _get_refseq('Seq2C_CDS.{genome}.bed', genome)
 
-    # features:                 /ngs/reference_data/genomes/Hsapiens/hg19/bed/Exons/RefSeq/
-    # bed_annotation_features:  /ngs/reference_data/genomes/Hsapiens/hg19/bed/Exons/RefSeq/RefSeq.all_features.hg19.bed
-    # cds:                      /ngs/reference_data/genomes/Hsapiens/hg19/bed/Exons/RefSeq/RefSeq_CDS.hg19.bed
-
-# def get_features(genome, canonical=True, features=None, biotypes=None):
-#     features = features or ['CDS', 'Exon', 'Transcript', 'Gene']
-#
-#     if biotypes:
-#         biotypes = 'CDS'
-#     fname = 'RefSeq' + ''
-#     return _get(genome, join('RefSeq', 'RefSeq_CDS_miRNA.all_features.{genome}.canon.bed'))
-
-
 # TODO
-# split features into smaller parts:
-#
+# ?split features into smaller parts:
 # hg19
 #   CDS.canon.bed
 #   CDS.bed
@@ -54,11 +40,14 @@ def get_seq2c_cds(genome):
 #   Genes.bed
 #   CDS_miRNA.all_features.canon.bed
 
-def get_hgnc_gene_synonyms():
-    return _get_refseq('HGNC_gene_synonyms.txt')
-
 def get_refseq_knowngene(genome):
     return _get_refseq('RefSeq_knownGene.{genome}.txt', genome.split('-')[0])
+
+def get_refseq_gene(genome):
+    return _get_refseq('refGene.{genome}.txt.gz', genome.split('-')[0])
+
+def get_hgnc_gene_synonyms():
+    return _get_refseq('HGNC_gene_synonyms.txt')
 
 
 def _get(relative_path, genome=None):
