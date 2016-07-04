@@ -105,6 +105,8 @@ def annotate(input_bed_fpath, features_fpath, output_fpath, reuse=False):
                 # off_target_fpath = _save_regions(off_targets, join(work_dirpath, 'off_target_1.bed'))
                 # log('Saved off target1 to ' + str(off_target_fpath))
                 info()
+            else:
+                break
 
     if annotated is not None and off_targets is not None:
         annotated.extend(off_targets)
@@ -131,7 +133,7 @@ class Region(SortableByChrom):
         self.total_merged = 0
 
     def __str__(self):
-        fs = [self.chrom, '{}'.format(self.start), '{}'.format(self.end), self.symbol or '.']
+        fs = [self.chrom, '{}'.format(self.start), '{}'.format(self.end), self.symbol or '.', self.exon or '.', self.strand or '.']
         return '\t'.join(fs) + '\n'
 
     def get_key(self):
