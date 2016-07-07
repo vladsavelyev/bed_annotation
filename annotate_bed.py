@@ -8,7 +8,7 @@ import GeneAnnotation
 from Utils.Region import SortableByChrom
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
-from Utils.bam_bed_utils import verify_bed
+from Utils.bed_utils import verify_bed
 from Utils.file_utils import verify_file, file_transaction
 from Utils.logger import critical, info
 
@@ -72,7 +72,7 @@ def bed_chrom_order(bed_fpath):
     return chr_order
 
 
-def annotate(input_bed_fpath, features_fpath, output_fpath, reuse=False):
+def annotate(input_bed_fpath, features_bed_fpath, output_fpath, reuse=False):
     if reuse and isfile(output_fpath) and verify_file(output_fpath):
         debug(output_fpath + ' exists, reusing.')
         return output_fpath
@@ -82,16 +82,16 @@ def annotate(input_bed_fpath, features_fpath, output_fpath, reuse=False):
     bed = BedTool(input_bed_fpath).cut([0, 1, 2])
     info()
 
-    annotated = None
-    off_targets = None
+    annotated = []
+    off_targets = []
 
     for feature in ['CDS', 'Exon', 'Transcript', 'Gene']:
-        if bed:
-            info('Extracting ' + feature + ' features from ' + features_fpath)
-            features_bed = BedTool(features_fpath).filter(lambda x: x[6] == feature)
+        if bed is not None:
+            info('Extracting RefSeq features')
+            ref_bed = BedTool(features_bed_fpath).filter(lambda x: x[6] == feature)
 
             info('Annotating based on ' + feature + '...')
-            new_annotated, off_targets = _annotate(bed, features_bed, chr_order)
+            new_annotated, off_targets = _annotate(bed, ref_bed, chr_order)
             if not annotated:
                 annotated = new_annotated
                 for a in annotated:
@@ -108,8 +108,7 @@ def annotate(input_bed_fpath, features_fpath, output_fpath, reuse=False):
             else:
                 break
 
-    if annotated is not None and off_targets is not None:
-        annotated.extend(off_targets)
+    annotated.extend(off_targets)
 
     info('Saving annotated regions...')
     with file_transaction(None, output_fpath) as tx:
@@ -133,7 +132,12 @@ class Region(SortableByChrom):
         self.total_merged = 0
 
     def __str__(self):
-        fs = [self.chrom, '{}'.format(self.start), '{}'.format(self.end), self.symbol or '.', self.exon or '.', self.strand or '.']
+        fs = [self.chrom,
+              '{}'.format(self.start),
+              '{}'.format(self.end),
+              self.symbol or '.',
+              self.exon or '.',
+              self.strand or '.']
         return '\t'.join(fs) + '\n'
 
     def get_key(self):
