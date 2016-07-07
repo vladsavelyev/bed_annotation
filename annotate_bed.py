@@ -5,10 +5,9 @@ from os.path import isfile
 from pybedtools import BedTool
 
 import GeneAnnotation
-from Utils.Region import SortableByChrom
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
-from Utils.bed_utils import verify_bed, bedtools_version
+from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom
 from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which
 from Utils.logger import critical, info
 

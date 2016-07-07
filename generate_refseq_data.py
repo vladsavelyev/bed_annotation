@@ -7,10 +7,9 @@ from os.path import join, dirname
 from traceback import format_exc
 
 import GeneAnnotation as ga
-from Utils.bed_utils import bgzip_and_tabix
+from Utils.bed_utils import bgzip_and_tabix, SortableByChrom
 from Utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
 from Utils.logger import err, info, critical, debug
-from Utils.Region import SortableByChrom
 from Utils.utils import is_local
 import Utils.reference_data as ref
 
