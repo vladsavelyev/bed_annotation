@@ -8,8 +8,8 @@ import GeneAnnotation
 from Utils.Region import SortableByChrom
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
-from Utils.bed_utils import verify_bed
-from Utils.file_utils import verify_file, file_transaction
+from Utils.bed_utils import verify_bed, bedtools_version
+from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which
 from Utils.logger import critical, info
 
 
@@ -31,6 +31,7 @@ def main():
         (['--work-dir'], dict(dest='work_dir', metavar='DIR', help=SUPPRESS_HELP)),
         (['--log-dir'], dict(dest='log_dir', metavar='DIR', help=SUPPRESS_HELP)),
         (['-g', '--genome'], dict(dest='genome')),
+        (['--canonical'], dict(dest='only_canonical')),
     ]
 
     parser = OptionParser(description='Annotating BED file based on reference features annotations.')
@@ -39,14 +40,17 @@ def main():
     opts, args = parser.parse_args()
 
     if len(args) < 1:
-        parser.exit('Usage: ' + __file__ + ' Input_BED_file -g hg19 -o Annotated_BED_file')
+        parser.exit('Usage: ' + __file__ + ' Input_BED_file -g hg19 -o Annotated_BED_file [--canonical]')
     input_bed_fpath = verify_bed(args[0], is_critical=True, description='Input BED file for ' + __file__)
 
     features_fpath = None
     if opts.features:
         features_fpath = verify_bed(opts.features, is_critical=True)
     elif opts.genome:
-        features_fpath = verify_file(GeneAnnotation.get_all_features_canonical(opts.genome))
+        if opts.only_canonical:
+            features_fpath = verify_file(GeneAnnotation.get_all_features_canonical(opts.genome))
+        else:
+            features_fpath = verify_file(GeneAnnotation.get_all_features(opts.genome))
         if not features_fpath:
             critical('Genome ' + opts.genome + ' is not supported. Supported: ' + ', '.join(GeneAnnotation.SUPPORTED_GENOMES))
     else:
@@ -79,19 +83,25 @@ def annotate(input_bed_fpath, features_bed_fpath, output_fpath, reuse=False):
 
     chr_order = bed_chrom_order(input_bed_fpath)
 
+    bedtools = which('bedtools')
+    bedtools_v = bedtools_version(bedtools)
     bed = BedTool(input_bed_fpath).cut([0, 1, 2])
     info()
 
     annotated = []
     off_targets = []
+    if bedtools_v > 25 or not features_bed_fpath.endswith('.gz'):
+        ref_bed = BedTool(features_bed_fpath)
+    else:
+        ref_bed = BedTool(open_gzipsafe(features_bed_fpath)).saveas()
 
     for feature in ['CDS', 'Exon', 'Transcript', 'Gene']:
         if bed is not None:
             info('Extracting RefSeq features')
-            ref_bed = BedTool(features_bed_fpath).filter(lambda x: x[6] == feature)
+            _ref_bed = ref_bed.filter(lambda x: x[6] == feature)
 
             info('Annotating based on ' + feature + '...')
-            new_annotated, off_targets = _annotate(bed, ref_bed, chr_order)
+            new_annotated, off_targets = _annotate(bed, _ref_bed, chr_order)
             if not annotated:
                 annotated = new_annotated
                 for a in annotated:
@@ -137,7 +147,8 @@ class Region(SortableByChrom):
               '{}'.format(self.end),
               self.symbol or '.',
               self.exon or '.',
-              self.strand or '.']
+              self.strand or '.',
+              self.biotype or '.']
         return '\t'.join(fs) + '\n'
 
     def get_key(self):
@@ -178,7 +189,7 @@ def _resolve_ambiguities(annotated_by_loc_by_gene, chrom_order):
 
 
 def _annotate(bed, ref_bed, chr_order):
-    intersection = bed.intersect(ref_bed, wao=True)
+    intersection = bed.intersect(ref_bed, sorted=True, wao=True)
 
     total_annotated = 0
     total_uniq_annotated = 0

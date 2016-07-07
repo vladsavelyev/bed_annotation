@@ -7,6 +7,7 @@ from os.path import join, dirname
 from traceback import format_exc
 
 import GeneAnnotation as ga
+from Utils.bed_utils import bgzip_and_tabix
 from Utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
 from Utils.logger import err, info, critical, debug
 from Utils.Region import SortableByChrom
@@ -108,7 +109,7 @@ See more info in http://wiki.rd.astrazeneca.net/display/NG/SOP+-+Making+the+full
     if len(args) > 1:
         input_fpath = verify_file(args[1])
     else:
-        input_fpath = ga.get_refseq_knowngene(genome_name)
+        input_fpath = ga.get_refseq_gene(genome_name)
 
     output_dirpath = ga.get_refseq_dirpath()
     synonyms_fpath = ga.get_hgnc_gene_synonyms()
@@ -166,13 +167,15 @@ See more info in http://wiki.rd.astrazeneca.net/display/NG/SOP+-+Making+the+full
 
     info()
     info('Sorting and printing all regions...')
-    all_features_fpath = ga.get_all_features(genome_name).fn
+    all_features_fpath = ga.get_all_features_unzip(genome_name).fn
     write_all_features(genes, all_features_fpath, canon_only=False)
+    all_features_fpath = bgzip_and_tabix(all_features_fpath, tabix_parameters='-p bed')
 
     info()
     info('Sorting and printing canonical regions...')
-    canon_output_fpath = ga.get_all_features_canonical(genome_name).fn
+    canon_output_fpath = ga.get_all_features_canonical_unzip(genome_name).fn
     write_all_features(canon_genes, canon_output_fpath, canon_only=True)
+    canon_output_fpath = bgzip_and_tabix(canon_output_fpath, tabix_parameters='-p bed')
 
     info()
     info('Sorting and printing canonical CDS...')
@@ -218,6 +221,7 @@ def write_all_features(genes, output_fpath, canon_only, cds_only=False, seq2c_cd
                 if not cds_only or t.coding:
                     regions.append(e)
 
+    regions = sorted(regions, key=lambda r: r.get_key())
     info('Writing ' + str(len(regions)) + ' regions')
     with open(adjust_path(output_fpath), 'w') as all_out:
         for r in regions:
@@ -268,8 +272,8 @@ def choose_canonical(genes, canonical_transcripts_ids):
                 not_found_in_canon_coding_num += 1
                 if len(g.transcripts) == 1:
                     not_found_in_canon_coding_num_one_transcript += 1
-                longest_t = max(g.transcripts, key=Transcript.length)
-                longest_t.is_canonical = True
+                # longest_t = max(g.transcripts, key=Transcript.length)
+                # longest_t.is_canonical = True
             elif any(not t.coding for t in g.transcripts):
                 not_found_in_canon_rna_num += 1
             else:
@@ -547,20 +551,26 @@ def get_approved_gene_symbol(approved_gene_by_name, approved_gnames_by_prev_gnam
 def _proc_ucsc(inp, output_fpath, chr_order):  #, approved_gene_by_name, approved_gnames_by_prev_gname, approved_gnames_by_synonym):
     gene_by_name_and_chrom = dict()
 
-    prev_chrom = None
     for l in inp:
         if l and not l.startswith('#'):
-            transcript_id, ucsc_chrom, strand, cdsStart, cdsEnd, exonCount, exonStarts, exonEnds, gene_symbol =\
-                l.replace('\n', '').split('\t')
+            fs = l.replace('\n', '').split('\t')
+            txStart, txEnd = None, None
+            if len(fs) > 9:
+                _, transcript_id, ucsc_chrom, strand, txStart, txEnd, cdsStart, cdsEnd, exonCount, exonStarts, exonEnds, \
+                        _,  gene_symbol = fs[:13]
+                txStart, txEnd = int(txStart), int(txEnd)
+            else:
+                transcript_id, ucsc_chrom, strand, cdsStart, cdsEnd, exonCount, exonStarts, exonEnds, gene_symbol =\
+                    l.replace('\n', '').split('\t')
             cdsStart = int(cdsStart)
             cdsEnd = int(cdsEnd)
             exonCount = int(exonCount)
             exonStarts = [int(v) + 1 for v in exonStarts.split(',') if v]
             exonEnds = map(int, filter(None, exonEnds.split(',')))
 
-            if ucsc_chrom != prev_chrom:
-                info(ucsc_chrom)
-                prev_chrom = ucsc_chrom
+            # if ucsc_chrom != prev_chrom:  # RefGene is not sorted
+            #     info(ucsc_chrom)
+            #     prev_chrom = ucsc_chrom
 
             # approved_gene_symbol, status = get_approved_gene_symbol(
             #     approved_gene_by_name, approved_gnames_by_prev_gname, approved_gnames_by_synonym,
@@ -573,8 +583,8 @@ def _proc_ucsc(inp, output_fpath, chr_order):  #, approved_gene_by_name, approve
             #     else:
             #         approved_gene_symbol = gene_symbol
 
-            txStart = exonStarts[0] - 1
-            txEnd = exonEnds[exonCount - 1]
+            txStart = txStart or exonStarts[0] - 1
+            txEnd = txEnd or exonEnds[exonCount - 1]
 
             # out.write('\t'.join([ucsc_chrom, str(min(txStart, cdsStart)), str(max(txEnd, cdsEnd)),
             #                      gene_symbol, '.', strand, 'Gene', '.']) + '\n')
@@ -621,18 +631,17 @@ NR_130132	 0980866/           \0981147 0990287/ \0990380 ... 1006281/           
                 eStart -= 1
 
                 if eEnd <= cdsStart or eStart > cdsEnd:
-                    if not transcript.coding:
-                        transcript.exons.append(Exon(transcript, eStart, eEnd, 'Exon', exon_number))
+                    biotype = 'UTR' if transcript.coding else transcript.biotype
+                    transcript.exons.append(Exon(transcript, eStart, eEnd, 'Exon', exon_number, biotype))
 
                 else:
                     assert transcript.coding, 'Non-coding NM_ transcript ' + transcript_id
 
-                    if cdsStart <= eStart:
-                        transcript.exons.append(Exon(transcript, eStart, eEnd, 'CDS', exon_number))
-                    elif eEnd > cdsStart:
-                        transcript.exons.append(Exon(transcript, cdsStart, eEnd, 'CDS', exon_number))
-                    else:
-                        info('Warn: exon ' + str(eStart) + ':' + str(eEnd) + ' does not contain CDS, CDS start = ' + str(cdsStart))
+                    if eStart < cdsStart:
+                        transcript.exons.append(Exon(transcript, eStart, cdsStart, 'Exon', exon_number, biotype='UTR'))
+                    if eEnd > cdsEnd:
+                        transcript.exons.append(Exon(transcript, cdsEnd, eEnd, 'Exon', exon_number, biotype='UTR'))
+                    transcript.exons.append(Exon(transcript, max(cdsStart, eStart), min(cdsEnd, eEnd), 'CDS', exon_number))
 
     return gene_by_name_and_chrom
 
@@ -732,12 +741,13 @@ class Gene(SortableByChrom):
 
 
 class Exon(SortableByChrom):
-    def __init__(self, transcript, start, end, feature, exon_number):
+    def __init__(self, transcript, start, end, feature, exon_number, biotype=None):
         SortableByChrom.__init__(self, transcript.gene.chrom, transcript.gene.chrom_ref_order)
         self.transcript = transcript
         self.start = start
         self.end = end
         self.feature = feature
+        self.biotype = biotype
         self.exon_number = exon_number
 
     def __str__(self):
@@ -748,7 +758,7 @@ class Exon(SortableByChrom):
               '{}'.format(self.exon_number) if self.exon_number is not None else '.',
               self.transcript.gene.strand or '.',
               self.feature or '.',
-              self.transcript.biotype or '.',
+              self.biotype or self.transcript.biotype or '.',
               self.transcript.transcript_id or '.',
              ]
         return '\t'.join(fs) + '\n'

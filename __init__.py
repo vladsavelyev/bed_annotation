@@ -14,12 +14,18 @@ def check_genome(genome):
         sys.exit(1)
 
 def get_all_features(genome):
+    return _get_refseq('all_features.{genome}.bed.gz', genome)
+
+def get_all_features_unzip(genome):
     return _get_refseq('all_features.{genome}.bed', genome)
 
 # ncRNA and protein coding CDS, Exons, Gene and Transcript features - only for canonical tracnscripts
 # - used to annotate BED files
 # - used to report in regional TargQC reports
 def get_all_features_canonical(genome):
+    return _get_refseq('all_features.{genome}.canon.bed.gz', genome)
+
+def get_all_features_canonical_unzip(genome):
     return _get_refseq('all_features.{genome}.canon.bed', genome)
 
 # CDS for canonical transcripts, used as TargQC target when no BED available
