@@ -13,20 +13,14 @@ def check_genome(genome):
         sys.stdout.write('Genome ' + genome + ' is not supported. Supported genomes: ' + ', '.join(SUPPORTED_GENOMES) + '\n')
         sys.exit(1)
 
-def get_all_features(genome):
-    return _get_refseq('all_features.{genome}.bed.gz', genome)
-
-def get_all_features_unzip(genome):
-    return _get_refseq('all_features.{genome}.bed', genome)
+def get_all_features(genome, gzip=True):
+    return _get_refseq('all_features.{genome}.bed' + ('.gz' if gzip else ''), genome)
 
 # ncRNA and protein coding CDS, Exons, Gene and Transcript features - only for canonical tracnscripts
 # - used to annotate BED files
 # - used to report in regional TargQC reports
-def get_all_features_canonical(genome):
-    return _get_refseq('all_features.{genome}.canon.bed.gz', genome)
-
-def get_all_features_canonical_unzip(genome):
-    return _get_refseq('all_features.{genome}.canon.bed', genome)
+def get_all_features_canonical(genome, gzip=True):
+    return _get_refseq('all_features.{genome}.canon.bed' + ('.gz' if gzip else ''), genome)
 
 # CDS for canonical transcripts, used as TargQC target when no BED available
 def get_cds(genome):
@@ -75,12 +69,11 @@ def _get(relative_path, genome=None):
     path = abspath(join(dirname(__file__), relative_path))
 
     if path.endswith('.bed') or path.endswith('.bed.gz'):
-        bed = BedTool(path)
         if chrom:
+            bed = BedTool(path)
             bed = bed.filter(lambda r: r.chrom == chrom)
-        return bed.saveas().fn
-    else:
-        return path
+            path = bed.saveas().fn
+    return path
 
 def get_refseq_dirpath():
     return abspath(join(dirname(__file__), REFSEQ_DIR))

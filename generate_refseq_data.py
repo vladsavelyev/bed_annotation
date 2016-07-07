@@ -167,24 +167,24 @@ See more info in http://wiki.rd.astrazeneca.net/display/NG/SOP+-+Making+the+full
 
     info()
     info('Sorting and printing all regions...')
-    all_features_fpath = ga.get_all_features_unzip(genome_name).fn
+    all_features_fpath = ga.get_all_features(genome_name, gzip=False)
     write_all_features(genes, all_features_fpath, canon_only=False)
     all_features_fpath = bgzip_and_tabix(all_features_fpath, tabix_parameters='-p bed')
 
     info()
     info('Sorting and printing canonical regions...')
-    canon_output_fpath = ga.get_all_features_canonical_unzip(genome_name).fn
+    canon_output_fpath = ga.get_all_features_canonical(genome_name, gzip=False)
     write_all_features(canon_genes, canon_output_fpath, canon_only=True)
     canon_output_fpath = bgzip_and_tabix(canon_output_fpath, tabix_parameters='-p bed')
 
     info()
     info('Sorting and printing canonical CDS...')
-    cds_output_fpath = ga.get_cds(genome_name).fn
+    cds_output_fpath = ga.get_cds(genome_name)
     write_all_features(canon_genes, cds_output_fpath, canon_only=True, cds_only=True)
 
     info()
     info('Sorting and printing CDS for Seq2C (unique transcript per gene)...')
-    seq2c_output_fpath = ga.get_seq2c_cds(genome_name).fn
+    seq2c_output_fpath = ga.get_seq2c_cds(genome_name)
     write_all_features(canon_genes, seq2c_output_fpath, canon_only=True, cds_only=True, seq2c_cds=True)
 
     info()
