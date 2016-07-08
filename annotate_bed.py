@@ -8,7 +8,7 @@ import GeneAnnotation
 from Utils import reference_data
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
-from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom, cut
+from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom, cut, count_bed_cols
 from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which, intermediate_fname
 from Utils.logger import critical, info
 
@@ -200,8 +200,10 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath=None):
         # intersection = bed.intersect(ref_bed, sorted=True, wao=True, genome=genome.split('-')[0])
     # else:
 
-    intersection = bed.intersect(ref_bed, wao=True)
-    # intersection = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
+    if fai_fpath and count_bed_cols(fai_fpath) == 2:
+        intersection = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
+    else:
+        intersection = bed.intersect(ref_bed, wao=True)
 
     total_annotated = 0
     total_uniq_annotated = 0
