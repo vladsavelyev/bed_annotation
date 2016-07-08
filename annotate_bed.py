@@ -5,10 +5,11 @@ from os.path import isfile
 from pybedtools import BedTool
 
 import GeneAnnotation
+from Utils import reference_data
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
-from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom
-from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which
+from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom, cut
+from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which, intermediate_fname
 from Utils.logger import critical, info
 
 
@@ -55,7 +56,7 @@ def main():
     else:
         critical('Error: neither --features nor --genome is specified. Features are required for annotation.')
 
-    output_fpath = annotate(input_bed_fpath, features_fpath, opts.output_file)
+    output_fpath = annotate(input_bed_fpath, features_fpath, opts.output_file, genome=opts.genome)
 
     info('Done, saved to ' + output_fpath)
 
@@ -75,12 +76,17 @@ def bed_chrom_order(bed_fpath):
     return chr_order
 
 
-def annotate(input_bed_fpath, features_bed_fpath, output_fpath, reuse=False):
+def annotate(input_bed_fpath, features_bed_fpath, output_fpath, reuse=False, genome=None):
     if reuse and isfile(output_fpath) and verify_file(output_fpath):
         debug(output_fpath + ' exists, reusing.')
         return output_fpath
 
-    chr_order = bed_chrom_order(input_bed_fpath)
+    if genome:
+        fai_fpath = reference_data.get_fai(genome)
+        chr_order = reference_data.get_chrom_order(genome)
+    else:
+        fai_fpath = None
+        chr_order = bed_chrom_order(input_bed_fpath)
 
     bedtools = which('bedtools')
     bedtools_v = bedtools_version(bedtools)
@@ -100,7 +106,7 @@ def annotate(input_bed_fpath, features_bed_fpath, output_fpath, reuse=False):
             _ref_bed = ref_bed.filter(lambda x: x[6] == feature)
 
             info('Annotating based on ' + feature + '...')
-            new_annotated, off_targets = _annotate(bed, _ref_bed, chr_order)
+            new_annotated, off_targets = _annotate(bed, _ref_bed, chr_order, fai_fpath)
             if not annotated:
                 annotated = new_annotated
                 for a in annotated:
@@ -187,8 +193,15 @@ def _resolve_ambiguities(annotated_by_loc_by_gene, chrom_order):
     return annotated
 
 
-def _annotate(bed, ref_bed, chr_order):
-    intersection = bed.intersect(ref_bed, sorted=True, wao=True)
+def _annotate(bed, ref_bed, chr_order, fai_fpath=None):
+    # if genome:
+        # genome_fpath = cut(fai_fpath, 2, output_fpath=intermediate_fname(work_dir, fai_fpath, 'cut2'))
+        # intersection = bed.intersect(ref_bed, sorted=True, wao=True, g='<(cut -f1,2 ' + fai_fpath + ')')
+        # intersection = bed.intersect(ref_bed, sorted=True, wao=True, genome=genome.split('-')[0])
+    # else:
+
+    intersection = bed.intersect(ref_bed, wao=True)
+    # intersection = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
 
     total_annotated = 0
     total_uniq_annotated = 0
