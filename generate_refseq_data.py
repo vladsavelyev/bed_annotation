@@ -10,7 +10,6 @@ import GeneAnnotation as ga
 from Utils.bed_utils import bgzip_and_tabix, SortableByChrom
 from Utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
 from Utils.logger import err, info, critical, debug
-from Utils.utils import is_local
 import Utils.reference_data as ref
 
 
@@ -29,9 +28,9 @@ grep -v "_hap" all_features.hg19.bed                 > all_features.hg19-noalt.b
 grep -v "_alt" all_features.hg38.bed                 > all_features.hg38-noalt.bed
 grep -v "_hap" all_features.hg19.canon.bed           > all_features.hg19-noalt.canon.bed
 grep -v "_alt" all_features.hg38.canon.bed           > all_features.hg38-noalt.canon.bed
-grep -v "_hap" CDS.hg19.bed                          > CDS.hg19-nohap.bed
+grep -v "_hap" CDS.hg19.bed                          > CDS.hg19-noalt.bed
 grep -v "_alt" CDS.hg38.bed                          > CDS.hg38-noalt.bed
-grep -v "_hap" Seq2C_CDS.hg19.bed                    > Seq2C_CDS.hg19-nohap.bed
+grep -v "_hap" Seq2C_CDS.hg19.bed                    > Seq2C_CDS.hg19-noalt.bed
 grep -v "_alt" Seq2C_CDS.hg38.bed                    > Seq2C_CDS.hg38-noalt.bed
 grep -w chr20  all_features.hg19.bed                 > all_features.hg19-chr20.bed
 grep -w chr20  all_features.hg19.canon.bed           > all_features.hg19-chr20.canon.bed
@@ -51,8 +50,8 @@ scp -r $uk:/ngs/reference_data/genomes/Hsapiens/hg38/bed/Exons/RefSeq/*.bed /ngs
 
 
 # TODO:
-# automatically download http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refGene.txt.gz or SQL http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refGene.sql
-
+# automatically download http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refGene.txt.gz
+#                 or SQL http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refGene.sql
 
 def main():
     description = '''
@@ -181,10 +180,10 @@ See more info in http://wiki.rd.astrazeneca.net/display/NG/SOP+-+Making+the+full
     cds_output_fpath = ga.get_cds(genome_name)
     write_all_features(canon_genes, cds_output_fpath, canon_only=True, cds_only=True)
 
-    info()
-    info('Sorting and printing CDS for Seq2C (unique transcript per gene)...')
-    seq2c_output_fpath = ga.get_seq2c_cds(genome_name)
-    write_all_features(canon_genes, seq2c_output_fpath, canon_only=True, cds_only=True, seq2c_cds=True)
+    # info()
+    # info('Sorting and printing CDS for Seq2C (unique transcript per gene)...')
+    # seq2c_output_fpath = ga.get_seq2c_cds(genome_name)
+    # write_all_features(canon_genes, seq2c_output_fpath, canon_only=True, cds_only=True, seq2c_cds=True)
 
     info()
     info('Saved all regions to\n   ' + all_features_fpath + '\n   ' + canon_output_fpath + '\n   ' + cds_output_fpath + '\n   ' + seq2c_output_fpath)
