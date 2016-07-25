@@ -1,3 +1,4 @@
 .DS_Store
 *.pyc
-Ensembl/hg38/test_annotation
+Ensembl/*/test_annotation
+Ensembl/*/ensembl.bed

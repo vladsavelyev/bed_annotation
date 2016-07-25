@@ -93,10 +93,7 @@ Usage:
             tx_biotype = bm_tx_biotype
             if rec.end - rec.start < 0:
                 continue
-            try:
-                tsl = bm_tsl.split()[0].replace('tsl', '')
-            except:
-                print bm_tsl
+            tsl = bm_tsl.split()[0].replace('tsl', '.') if bm_tsl else None
 
             fs = [None] * len(ga.BedCols.cols[:-4])
             if not rec.chrom.startswith('chr'):
@@ -111,7 +108,7 @@ Usage:
             fs[ga.BedCols.BIOTYPE] = tx_biotype or '.'
             fs[ga.BedCols.ENSEMBL_ID] = tx_id or '.'
             # fs[ga.BedCols.REFSEQ_ID] = refseq_id or '.'
-            # fs[ga.BedCols.IS_CANONICAL] = 'canonical' if refseq_id in canonical_transcripts_ids else '.'
+            # fs[ga.BedCols.IS_CANONICAL] = 'canonical' if refseq_id in canonical_transcripts_ids else ''
             fs[ga.BedCols.TSL] = tsl or '.'
             fs[ga.BedCols.HUGO] = hugo_gene or '.'
             # fs[ga.BedCols.names[ga.BedCols.GC]] = gc
@@ -127,6 +124,7 @@ Usage:
     debug('Sorting results')
     sort_bed(unsorted_output_fpath, output_fpath, fai_fpath=ref.get_fai(genome_name), genome=genome_name)
     os.remove(unsorted_output_fpath)
+    bgzip_and_tabix(output_fpath)
 
     # with open(output_fpath, 'w') as out:
     #     for feature in db.features_of_type('transcript', order_by=("seqid", "start", "end")):

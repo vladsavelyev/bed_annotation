@@ -4,6 +4,7 @@ from pybedtools import BedTool
 
 from Utils.bed_utils import bedtools_version
 from Utils.file_utils import which, open_gzipsafe
+from Utils.logger import debug
 
 
 class BedCols:
@@ -49,29 +50,61 @@ def check_genome(genome):
         sys.stdout.write('Genome ' + genome + ' is not supported. Supported genomes: ' + ', '.join(SUPPORTED_GENOMES) + '\n')
         sys.exit(1)
 
+#################
+### INTERFACE ###
+#################
+def get_all_features(genome, high_confidence=False):
+    bed = _get_ensembl_file('ensembl.bed', genome)
+    if high_confidence:
+        bed = bed.filter(high_confidence_filter)
+    return bed
 
+def get_merged_cds(genome):
+    """
+    Returns all CDS merged, used:
+    - for TargQC general reports CDS coverage statistics for WGS
+    - for Seq2C CNV calling when no capture BED available
+    """
+    bed = get_all_features(genome)
+    return bed\
+        .filter(lambda r: r.fields[BedCols.FEATURE] in ['CDS', 'stop_codon'])\
+        .filter(high_confidence_filter)\
+        .merge()
+
+##############
+### REFSEQ ###
+##############
 REFSEQ_DIR = 'RefSeq'
 
 def refseq_knowngene_fpath(genome):
-    return _get_refseq('RefSeq_knownGene.txt', genome.split('-')[0])  # no -alt
+    return _get_refseq_file('RefSeq_knownGene.txt', genome.split('-')[0])  # no -alt
 
 def get_refseq_gene(genome):
-    return _get_refseq('refGene.txt.gz', genome.split('-')[0])  # no -alt
+    return _get_refseq_file('refGene.txt.gz', genome.split('-')[0])  # no -alt
 
-def _get_refseq(fname, genome=None):
+def _get_refseq_file(fname, genome=None):
     return _get(join(REFSEQ_DIR, genome, fname), genome)
 
 def get_refseq_dirpath():
     return abspath(join(dirname(__file__), REFSEQ_DIR))
 
-
+###############
+### ENSEMBL ###
+###############
 ENSEMBL_DIR = 'Ensembl'
 
-def _get_ensembl(fname, genome=None):
+def ensembl_gtf_fpath(genome):
+    return _get_ensembl_file(join('gtf', 'ref-transcripts.gtf'), genome.split('-')[0])  # no -alt
+
+def biomart_fpath(genome):
+    return _get_ensembl_file('biomart.tsv')
+
+def _get_ensembl_file(fname, genome=None):
     if genome:
         return _get(join(ENSEMBL_DIR, genome.split('-')[0], fname), genome)
     else:
         return _get(join(ENSEMBL_DIR, fname))
+
 
 '''
 This repository is made for storing genomic features coordinates and annotations.
@@ -118,32 +151,6 @@ Annotation in bcbio:
    - Known canonical CDS
 '''
 
-def ensembl_gtf_fpath(genome):
-    return _get_ensembl(join('gtf', 'ref-transcripts.gtf'), genome.split('-')[0])  # no -alt
-
-def get_all_features(genome):
-    return _get_ensembl('ensembl.bed', genome)
-
-def biomart_fpath(genome):
-    return _get_ensembl('biomart.tsv')
-
-def get_canonical_cds(genome):
-    """
-    CDS. Used:
-    - as TargQC target when no BED available
-    - for Seq2C CNV calling when no capture BED available
-    """
-    bed = get_all_features(genome)
-    return bed.filter(lambda r: r.fields[BedCols.FEATURE] in ['CDS', 'stop_codon'])
-
-def get_merged_cds(genome):
-    """
-    Returns all CDS merged, used for TargQC general reports CDS coverage statistics for WGS.
-    """
-    bed = get_all_features(genome)
-    return bed.filter(lambda r: r.fields[BedCols.FEATURE] in ['CDS', 'stop_codon']
-                                and r.fields[BedTool.canonical]).merge()
-
 
 def _get(relative_path, genome=None):
     """
@@ -168,10 +175,13 @@ def _get(relative_path, genome=None):
             bedtools = which('bedtools')
             bedtools_v = bedtools_version(bedtools)
             if bedtools_v > 25:
+                debug('Bed is compressed, creating BedTool')
                 bed = BedTool(path)
             else:
-                bed = BedTool(open_gzipsafe(path)).saveas()
+                debug('BedTools version is < ' + str(bedtools_v) + ', extracting BED file')
+                bed = BedTool(open_gzipsafe(path))
         else:
+            debug('Bed is uncompressed, creating BedTool')
             bed = BedTool(path)
 
         if chrom:
@@ -183,5 +193,5 @@ def _get(relative_path, genome=None):
 def get_hgnc_gene_synonyms():
     return _get('HGNC_gene_synonyms.txt')
 
-
-
+def high_confidence_filter(x):
+    return x[BedCols.TSL] in ['1', 'NA', '.', None] and x[BedCols.HUGO] not in ['', '.', None]

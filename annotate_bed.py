@@ -32,9 +32,6 @@ def main():
             default=False,
             help='Also output featues that used to annotate',
         )),
-        (['--reference', '--features'], dict(
-            dest='features',
-        )),
         (['--reuse'], dict(
             dest='reuse_intermediate',
             action='store_true',
@@ -110,18 +107,6 @@ def main():
         parser.exit('Usage: ' + __file__ + ' Input_BED_file -g hg19 -o Annotated_BED_file [--canonical]')
     input_bed_fpath = verify_bed(args[0], is_critical=True, description='Input BED file for ' + __file__)
 
-    features_bed = None
-    if opts.features:
-        debug('Getting features from ' + opts.features)
-        features_bed = BedTool(verify_file(opts.features, is_critical=True))
-    elif opts.genome:
-        debug('Getting features from storage')
-        features_bed = ga.get_all_features(opts.genome)
-        if not features_bed:
-            critical('Genome ' + opts.genome + ' is not supported. Supported: ' + ', '.join(ga.SUPPORTED_GENOMES))
-    else:
-        critical('Error: neither --features nor --genome is specified. Features are required for annotation.')
-
     output_fpath = adjust_path(opts.output_file)
 
     work_dir = None
@@ -134,7 +119,7 @@ def main():
             work_dir = safe_mkdir(join(adjust_path(opts.work_dir), basename(input_bed_fpath)))
 
     output_fpath = annotate(
-        input_bed_fpath, features_bed, output_fpath, opts.genome, work_dir=work_dir, is_debug=opts.debug,
+        input_bed_fpath, output_fpath, opts.genome, work_dir=work_dir, is_debug=opts.debug,
         only_canonical=opts.only_canonical, short=opts.short, extended=opts.extended, high_confidence=opts.high_confidence,
         collapse_exons=opts.collapse_exons, output_features=opts.output_features)
 
@@ -168,7 +153,7 @@ def get_sort_key(chr_order):
             fs[ga.BedCols.GENE])
 
 
-def annotate(input_bed_fpath, features_bed, output_fpath, genome=None,
+def annotate(input_bed_fpath, output_fpath, genome=None,
              work_dir=None, is_debug=False, reuse=False,
              only_canonical=False, short=False, extended=False, high_confidence=False,
              collapse_exons=True, output_features=False):
@@ -176,6 +161,11 @@ def annotate(input_bed_fpath, features_bed, output_fpath, genome=None,
     if reuse and isfile(output_fpath) and verify_file(output_fpath):
         debug(output_fpath + ' exists, reusing.')
         return output_fpath
+
+    debug('Getting features from storage')
+    features_bed = ga.get_all_features(genome)
+    if features_bed is None:
+        critical('Genome ' + genome + ' is not supported. Supported: ' + ', '.join(ga.SUPPORTED_GENOMES))
 
     if genome:
         fai_fpath = reference_data.get_fai(genome)
@@ -185,13 +175,16 @@ def annotate(input_bed_fpath, features_bed, output_fpath, genome=None,
         chr_order = bed_chrom_order(input_bed_fpath)
 
     bed = BedTool(input_bed_fpath).cut([0, 1, 2])
-    info()
 
+    # features_bed = features_bed.saveas()
+    # cols = features_bed.field_count()
+    # if cols < 12:
+    #     features_bed = features_bed.each(lambda f: f + ['.']*(12-cols))
     if high_confidence:
-        features_bed = features_bed.filter(lambda x: x[ga.BedCols.TSL] in ['1', 'NA'] and x[ga.BedCols.HUGO])
-
-    if work_dir:
-        features_bed.saveas(join(work_dir, 'features_tmp.txt'))
+        features_bed = features_bed.filter(ga.high_confidence_filter)
+    if work_dir and is_debug:
+        features_bed = features_bed.saveas(join(work_dir, 'features_tmp.bed'))
+        print features_bed.fn
     # unique_tx_by_gene = find_best_tx_by_gene(features_bed)
 
     info('Extracting features')
@@ -200,7 +193,7 @@ def annotate(input_bed_fpath, features_bed, output_fpath, genome=None,
         # x[ga.BedCols.ENSEMBL_ID] == unique_tx_by_gene[x[ga.BedCols.GENE]])
 
     info('Annotating...')
-    annotated = _annotate(bed, features_bed, chr_order, fai_fpath,
+    annotated = _annotate(bed.saveas(join(work_dir, 'bed.bed')), features_bed.saveas(join(work_dir, 'features.bed')), chr_order, fai_fpath,
         high_confidence, collapse_exons, output_features, is_debug, work_dir)
 
     header = [ga.BedCols.names[i] for i in ga.BedCols.cols]
@@ -284,7 +277,7 @@ def _format_field(value):
 
 def tx_sort_key(x):
     tsl_key = {'1': 0, '2': 2, '3': 3, '4': 4, '5': 5}.get(x[ga.BedCols.TSL], 1)
-    hugo_key = 0 if x[ga.BedCols.HUGO] is not None else 1
+    hugo_key = 0 if x[ga.BedCols.HUGO] not in ['.', '', None] else 1
     length_key = -(int(x[ga.BedCols.END]) - int(x[ga.BedCols.START]))
     return tsl_key, hugo_key, length_key
 
@@ -414,7 +407,7 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False,
             intersection = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
         else:
             intersection = bed.intersect(ref_bed, wao=True)
-    if debug and work_dir and not isfile(intersection_fpath):
+    if work_dir and debug and not isfile(intersection_fpath):
         intersection.saveas(intersection_fpath)
         info('Saved to ' + intersection_fpath)
 
