@@ -8,7 +8,7 @@ from os.path import join, dirname, splitext, isfile, isdir
 import GeneAnnotation as ga
 from Utils.bed_utils import bgzip_and_tabix, SortableByChrom, sort_bed
 from Utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
-from Utils.logger import err, info, critical, debug
+from Utils.logger import err, info, critical, debug, warn
 import Utils.reference_data as ref
 from Utils import gtf
 from Utils import logger
@@ -66,6 +66,9 @@ Usage:
         assert len(val) == 1, (_key, str(val))
         return val[0]
 
+    num_tx_not_in_biomart = 0
+    num_tx_diff_gene_in_biomart = 0
+
     with open(unsorted_output_fpath, 'w') as out:
         out.write('\t'.join(ga.BedCols.names[i] for i in ga.BedCols.cols[:-4]) + '\n')
 
@@ -78,19 +81,27 @@ Usage:
             tsl = _get(rec, 'transcript_support_level')
 
             bm_tx_id, refseq_id, gc, bm_tx_biotype, bm_tsl, hugo_gene, bm_gname = features_by_ens_id.get(tx_id, ['.']*7)
-            if tx_biotype:
-                assert tx_biotype == bm_tx_biotype, (tx_biotype, bm_tx_biotype)
-            if bm_gname:
-                assert gname == bm_gname, (gname, bm_gname)
+
+            if bm_gname in ['', '.', None]:
+                if rec.featuretype == 'transcript':
+                    num_tx_not_in_biomart += 1
+                continue
+            if bm_gname != gname:
+                if rec.featuretype == 'transcript':
+                    num_tx_diff_gene_in_biomart += 1
+                continue
+            tx_biotype = bm_tx_biotype
             if rec.end - rec.start < 0:
                 continue
-            if bm_tsl and tsl:
-                bm_tsl = bm_tsl.replace('tsl', '')
-                assert tsl == bm_tsl, (tsl, bm_tsl)
-                tsl = tsl.split()[0]
+            try:
+                tsl = bm_tsl.split()[0].replace('tsl', '')
+            except:
+                print bm_tsl
 
             fs = [None] * len(ga.BedCols.cols[:-4])
-            fs[:6] = ['chr' + rec.chrom.replace('MT', 'M'),
+            if not rec.chrom.startswith('chr'):
+                rec.chrom = 'chr' + rec.chrom.replace('MT', 'M')
+            fs[:6] = [rec.chrom,
                       str(rec.start - 1),
                       str(rec.end),
                       gname,
@@ -107,6 +118,11 @@ Usage:
             if len(fs) == 12:
                 print fs
             out.write('\t'.join(fs) + '\n')
+
+    if num_tx_not_in_biomart:
+        warn(str(num_tx_not_in_biomart) + ' transcripts not found in biomart')
+    if num_tx_diff_gene_in_biomart:
+        warn(str(num_tx_diff_gene_in_biomart) + ' transcripts have a different gene name in biomart')
 
     debug('Sorting results')
     sort_bed(unsorted_output_fpath, output_fpath, fai_fpath=ref.get_fai(genome_name), genome=genome_name)

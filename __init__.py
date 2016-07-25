@@ -68,8 +68,10 @@ def get_refseq_dirpath():
 ENSEMBL_DIR = 'Ensembl'
 
 def _get_ensembl(fname, genome=None):
-    return _get(join(ENSEMBL_DIR, genome, fname), genome)
-
+    if genome:
+        return _get(join(ENSEMBL_DIR, genome.split('-')[0], fname), genome)
+    else:
+        return _get(join(ENSEMBL_DIR, fname))
 
 '''
 This repository is made for storing genomic features coordinates and annotations.
@@ -123,7 +125,7 @@ def get_all_features(genome):
     return _get_ensembl('ensembl.bed', genome)
 
 def biomart_fpath(genome):
-    return _get_ensembl('biomart.tsv', genome)
+    return _get_ensembl('biomart.tsv')
 
 def get_canonical_cds(genome):
     """
