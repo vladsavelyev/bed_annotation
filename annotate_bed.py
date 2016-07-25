@@ -1,8 +1,11 @@
 #!/usr/bin/env python
+import os
 from itertools import izip, count
 from optparse import OptionParser, SUPPRESS_HELP
-from collections import defaultdict
-from os.path import isfile
+from collections import defaultdict, OrderedDict
+from os.path import isfile, join, basename
+
+from datetime import datetime
 from pybedtools import BedTool
 
 import GeneAnnotation as ga
@@ -10,7 +13,8 @@ from Utils import reference_data
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
 from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom, cut, count_bed_cols
-from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which, intermediate_fname
+from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which, intermediate_fname, adjust_path, \
+    safe_mkdir
 from Utils.logger import critical, info
 from Utils import logger
 
@@ -48,15 +52,14 @@ def main():
         )),
         (['--short'], dict(
             dest='short',
-<<<<<<< HEAD
             action='store_true',
-            default=True,
+            default=False,
             help='Add only "Gene" column',
         )),
         (['--extended'], dict(
-            dest='short',
-            action='store_false',
-            default=True,
+            dest='extended',
+            action='store_true',
+            default=False,
             help='Add additional columns: transcript, GC, overlap size...',
         )),
         (['--high-confidence'], dict(
@@ -71,30 +74,6 @@ def main():
             default=False,
             help='Equals to 3 flags set: --canonical, --short, --high-confidence',
         )),
-=======
-            action='store_true',
-            default=True,
-            help='Add only "Gene" column',
-        )),
-        (['--extended'], dict(
-            dest='short',
-            action='store_false',
-            default=True,
-            help='Add additional columns: transcript, GC, overlap size...',
-        )),
-        (['--high-confidence'], dict(
-            dest='high_confidence',
-            action='store_true',
-            default=False,
-            help='Annotate with only high confidence regions (TSL is 1 or NA, HUGO gene annotated, total overlap size > 50%)',
-        )),
-        (['--seq2c'], dict(
-            dest='seq2c',
-            action='store_true',
-            default=False,
-            help='Equals to 3 flags set: --canonical, --short, --high-confidence',
-        )),
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
         (['--debug'], dict(
             dest='debug',
             action='store_true',
@@ -111,21 +90,21 @@ def main():
         (['--log-dir'], dict(dest='log_dir', metavar='DIR', help=SUPPRESS_HELP)),
     ]
 
-    # TODO:
-    # merge BED if not
-
     parser = OptionParser(description='Annotating BED file based on reference features annotations.')
     for args, kwargs in options:
         parser.add_option(*args, **kwargs)
     opts, args = parser.parse_args()
     logger.is_debug = opts.debug
 
-    if opts.short and opts.output_features:
-        critical('--short and --output-features can\'t be set both')
-
+    if opts.short:
+        if opts.extended:        critical('--short and --extended can\'t be set both')
+        if opts.output_features: critical('--short and --output-features can\'t be set both')
+    elif opts.output_features or opts.extended:
+        opts.extended = True
+        opts.short = False
     if opts.seq2c:
         opts.short = opts.high_confidence = opts.only_canonical = True
-        opts.output_features = False
+        opts.output_features = opts.extended = False
 
     if len(args) < 1:
         parser.exit('Usage: ' + __file__ + ' Input_BED_file -g hg19 -o Annotated_BED_file [--canonical]')
@@ -134,7 +113,7 @@ def main():
     features_bed = None
     if opts.features:
         debug('Getting features from ' + opts.features)
-        features_bed = BedTool(verify_bed(opts.features, is_critical=True))
+        features_bed = BedTool(verify_file(opts.features, is_critical=True))
     elif opts.genome:
         debug('Getting features from storage')
         features_bed = ga.get_all_features(opts.genome)
@@ -143,11 +122,25 @@ def main():
     else:
         critical('Error: neither --features nor --genome is specified. Features are required for annotation.')
 
+    output_fpath = adjust_path(opts.output_file)
+
+    work_dir = None
+    prev_output_fpath = None
+    if opts.debug:
+        if isfile(output_fpath):
+            prev_output_fpath = output_fpath + '_' + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            os.rename(output_fpath, prev_output_fpath)
+        if opts.work_dir:
+            work_dir = safe_mkdir(join(adjust_path(opts.work_dir), basename(input_bed_fpath)))
+
     output_fpath = annotate(
-        input_bed_fpath, features_bed, opts.output_file, genome=opts.genome,
-        only_canonical=opts.only_canonical, short=opts.short, high_confidence=opts.high_confidence,
+        input_bed_fpath, features_bed, output_fpath, opts.genome, work_dir=work_dir, is_debug=opts.debug,
+        only_canonical=opts.only_canonical, short=opts.short, extended=opts.extended, high_confidence=opts.high_confidence,
         collapse_exons=opts.collapse_exons, output_features=opts.output_features)
 
+    if opts.debug:
+        if prev_output_fpath:
+            os.system('diff ' + prev_output_fpath + ' ' + output_fpath)
     info('Done, saved to ' + output_fpath)
 
 
@@ -166,7 +159,6 @@ def bed_chrom_order(bed_fpath):
     return chr_order
 
 
-<<<<<<< HEAD
 def get_sort_key(chr_order):
     return lambda fs: (chr_order[fs[ga.BedCols.CHROM]],
             int(fs[ga.BedCols.START]),
@@ -176,10 +168,9 @@ def get_sort_key(chr_order):
             fs[ga.BedCols.GENE])
 
 
-=======
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
-def annotate(input_bed_fpath, features_bed, output_fpath, reuse=False, genome=None,
-             only_canonical=False, short=False, high_confidence=False,
+def annotate(input_bed_fpath, features_bed, output_fpath, genome=None,
+             work_dir=None, is_debug=False, reuse=False,
+             only_canonical=False, short=False, extended=False, high_confidence=False,
              collapse_exons=True, output_features=False):
 
     if reuse and isfile(output_fpath) and verify_file(output_fpath):
@@ -196,70 +187,37 @@ def annotate(input_bed_fpath, features_bed, output_fpath, reuse=False, genome=No
     bed = BedTool(input_bed_fpath).cut([0, 1, 2])
     info()
 
-<<<<<<< HEAD
+    if high_confidence:
+        features_bed = features_bed.filter(lambda x: x[ga.BedCols.TSL] in ['1', 'NA'] and x[ga.BedCols.HUGO])
+
+    if work_dir:
+        features_bed.saveas(join(work_dir, 'features_tmp.txt'))
+    # unique_tx_by_gene = find_best_tx_by_gene(features_bed)
+
     info('Extracting features')
-    _ref_bed = features_bed.filter(lambda x:
-        x[ga.BedCols.FEATURE] in ['exon', 'CDS', 'stop_codon', 'transcript']
-        and (not high_confidence or x[ga.BedCols.TSL] in ['1', 'NA'] and x[ga.BedCols.HUGO]))
+    features_bed = features_bed.filter(lambda x:
+        x[ga.BedCols.FEATURE] in ['exon', 'CDS', 'stop_codon', 'transcript'])
+        # x[ga.BedCols.ENSEMBL_ID] == unique_tx_by_gene[x[ga.BedCols.GENE]])
 
     info('Annotating...')
-    annotated, off_targets = _annotate(bed, _ref_bed, chr_order, fai_fpath,
-        high_confidence, short, collapse_exons, output_features)
-    annotated.extend(off_targets)
-
-    # annotated.sort(key=sort_key)
-=======
-    annotated = []
-    off_targets = []
-
-    filters = [
-        lambda x: x[ga.BedCols.FEATURE] in ['exon', 'CDS', 'stop_codon', 'transcript']
-                  and (not high_confidence or x[ga.BedCols.TSL] in ['1', 'NA']
-                  and x[ga.BedCols.HUGO]),
-    ]
-
-    for filter_query in filters:
-        if bed is not None:
-            info('Extracting features')
-            _ref_bed = features_bed.filter(filter_query)
-
-            info('Annotating...')
-            new_annotated, off_targets = _annotate(bed, _ref_bed, chr_order, fai_fpath,
-                   high_confidence, short, collapse_exons)
-            if not annotated:
-                annotated = new_annotated
-            else:
-                annotated.extend(new_annotated)
-
-            if off_targets:
-                info()
-            else:
-                break
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
-
-    header = [ga.BedCols.names[i] for i in ga.BedCols.cols]
-
-    def sort_key(fs):
-        return (chr_order[fs[ga.BedCols.CHROM]],
-                int(fs[ga.BedCols.START]),
-                int(fs[ga.BedCols.END]),
-                0 if fs[ga.BedCols.FEATURE] == 'transcript' else 1,
-                fs[ga.BedCols.ENSEMBL_ID],
-                fs[ga.BedCols.GENE],
-                )
-    annotated.sort(key=sort_key)
+    annotated = _annotate(bed, features_bed, chr_order, fai_fpath,
+        high_confidence, collapse_exons, output_features, is_debug, work_dir)
 
     header = [ga.BedCols.names[i] for i in ga.BedCols.cols]
 
     info('Saving annotated regions...')
     with file_transaction(None, output_fpath) as tx:
         with open(tx, 'w') as out:
+            if short:
+                header = header[:4]
+            if not extended:
+                header = header[:6]
             out.write('\t'.join(header) + '\n')
-<<<<<<< HEAD
             for fields in annotated:
-=======
-            for fields in sorted(annotated, key=sort_key):
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
+                if short:
+                    fields = fields[:4]
+                if not extended:
+                    fields = fields[:6]
                 out.write('\t'.join(map(_format_field, fields)) + '\n')
     return output_fpath
 
@@ -303,152 +261,171 @@ def _format_field(value):
         return '{:.1f}'.format(value)
     else:
         return str(value or '.')
-<<<<<<< HEAD
-=======
 
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
 
-def _resolve_ambiguities(annotated_by_loc_by_gene, chrom_order, collapse_exons=True):
-    def _collapse(regions):
-        cons = []
-        for i in ga.BedCols.cols:
-            rs = [r[i] for r in regions]
-            if len(set(rs)) == 1:
-                cons.append(rs[0])
-            else:
-                cons.append(rs)
-        return cons
+# def find_best_tx_by_gene(features_bed):
+#     all_transcripts = features_bed.filter(lambda x: x[ga.BedCols.FEATURE] in ['transcript'])
+#
+#     tx_by_gene = defaultdict(list)
+#     for tx_region in all_transcripts:
+#         tx_by_gene[tx_region.name].append(tx_region)
+#     unique_tx_by_gene = dict()
+#     for g, txs in tx_by_gene.iteritems():
+#         tsl1_txs = [tx for tx in txs if tx[ga.BedCols.TSL] in ['1', 'NA']]
+#         if tsl1_txs:
+#             txs = tsl1_txs[:]
+#         hugo_txs = [tx for tx in txs if tx[ga.BedCols.HUGO]]
+#         if hugo_txs:
+#             txs = hugo_txs[:]
+#         best_tx = max(txs, key=lambda tx_: int(tx_[ga.BedCols.END]) - int(tx_[ga.BedCols.START]))
+#         unique_tx_by_gene[g] = best_tx[ga.BedCols.ENSEMBL_ID]
+#     return unique_tx_by_gene
 
-<<<<<<< HEAD
-def _resolve_ambiguities(annotated_by_loc_by_tx_by_gene, chrom_order, collapse_exons=True,
-                         high_confidence=False, short=False, output_features=False):
-    def _collapse(regions):
-        cons = []
-        for i in ga.BedCols.cols:
-            rs = [r[i] for r in regions]
-            if len(set(rs)) == 1:
-                cons.append(rs[0])
-            else:
-                cons.append(rs)
-        return cons
+
+def tx_sort_key(x):
+    tsl_key = {'1': 0, '2': 2, '3': 3, '4': 4, '5': 5}.get(x[ga.BedCols.TSL], 1)
+    hugo_key = 0 if x[ga.BedCols.HUGO] is not None else 1
+    length_key = -(int(x[ga.BedCols.END]) - int(x[ga.BedCols.START]))
+    return tsl_key, hugo_key, length_key
+
+
+# def select_best_tx(overlaps_by_tx):
+#     tx_overlaps = [(o, size) for os in overlaps_by_tx.values() for (o, size) in os if o[ga.BedCols.FEATURE] == 'transcript']
+#     tsl1_overlaps = [(o, size) for (o, size) in tx_overlaps if o[ga.BedCols.TSL] in ['1', 'NA']]
+#     if tsl1_overlaps:
+#         tx_overlaps = tsl1_overlaps
+#     hugo_overlaps = [(o, size) for (o, size) in tx_overlaps if o[ga.BedCols.HUGO]]
+#     if hugo_overlaps:
+#         tx_overlaps = hugo_overlaps
+#     (best_overlap, size) = max(sorted(tx_overlaps, key=lambda (o, size): int(o[ga.BedCols.END]) - int(o[ga.BedCols.START])))
+#     tx_id = best_overlap[ga.BedCols.ENSEMBL_ID]
+#     return tx_id
+
+
+def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_exons=True,
+                         high_confidence=False, output_features=False):
+    # sort transcripts by "quality" and then select which tx id to report in case of several overlaps
+    # (will be useful further when interating exons)
+    # annotated_by_tx_by_gene_by_loc = OrderedDict([
+    #     (loc, OrderedDict([
+    #         (gname, sorted(annotated_by_tx.itervalues(), key=tx_sort_key))
+    #             for gname, annotated_by_tx in annotated_by_tx_by_gene.iteritems()
+    #     ])) for loc, annotated_by_tx_by_gene in annotated_by_tx_by_gene_by_loc.iteritems()
+    # ])
 
     annotated = []
-    for (chrom, start, end), overlaps_by_tx_by_gene in annotated_by_loc_by_tx_by_gene.iteritems():
+    for (chrom, start, end), overlaps_by_tx_by_gene in annotated_by_tx_by_gene_by_loc.iteritems():
         features = dict()
         for gname, overlaps_by_tx in overlaps_by_tx_by_gene.iteritems():
-            tx_overlaps = [os for os in overlaps_by_tx for o in os if o[ga.BedCols.FEATURE] == 'transcript']
-            tsl1_overlaps = [o for o in tx_overlaps if o[ga.BedCols.TSL] in ['1', 'NA']]
-            if tsl1_overlaps:
-                tx_overlaps = tsl1_overlaps
-            hugo_overlaps = [o for o in tx_overlaps if o[ga.BedCols.HUGO]]
-            if hugo_overlaps:
-                tx_overlaps = hugo_overlaps
-            best_overlap = max(sorted(tx_overlaps, key=lambda fs: int(fs[ga.BedCols.END]) - int(fs[ga.BedCols.START])))
-            tx_id = best_overlap[ga.BedCols.ENSEMBL_ID]
+            consensus = [None for _ in ga.BedCols.cols]
+            consensus[:3] = chrom, start, end
+            consensus[ga.BedCols.FEATURE] = 'capture'
+            consensus[ga.BedCols.EXON_OVERLAPS_BASES] = 0
+            consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] = 0
+            consensus[ga.BedCols.EXON] = set()
 
-            for overlaps in overlaps_by_tx[tx_id]:
-=======
-    annotated = []
-    for (chrom, start, end), overlaps_by_tx in annotated_by_loc_by_gene.iteritems():
-        for tx_name, overlaps in overlaps_by_tx.iteritems():
-            if collapse_exons:
-                # consensus = _collapse([_r for _r, _, _ in overlaps if _r[ga.BedCols.FEATURE] != 'transcript'])
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
-                consensus = [None for _ in ga.BedCols.cols]
-                consensus[:3] = chrom, start, end
-                consensus[ga.BedCols.FEATURE] = 'capture'
-                consensus[ga.BedCols.EXON_OVERLAPS_BASES] = 0
-                consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] = 0
-                consensus[ga.BedCols.EXON] = set()
-
-<<<<<<< HEAD
-                for fields, overlap_size in overlaps:
-                    c_overlap_bp = overlap_size
-                    c_overlap_pct = 100.0 * c_overlap_bp / (int(end) - int(start))
-                    if high_confidence and c_overlap_pct < 50.0:
-                        continue
-
-                    if output_features:
-                        f_start = int(fields[1])
-                        f_end = int(fields[2])
-                        feature = features.get((f_start, f_end))
-                        if feature is None:
-                            feature = [None for _ in ga.BedCols.cols]
-                            feature[:len(fields)] = fields
-                            # feature[ga.BedCols.TX_OVERLAP_BASES] = 0
-                            # feature[ga.BedCols.TX_OVERLAP_PERCENTAGE] = 0
-                            features[(f_start, f_end)] = feature
-                        # feature[ga.BedCols.TX_OVERLAP_BASES] += c_overlap_bp
-                        # feature[ga.BedCols.TX_OVERLAP_PERCENTAGE] += 100.0 * c_overlap_bp / (int(f_end) - int(f_start))
-                        # TODO: don't forget to merge BED if not
-
-=======
-                for fields, overlap_bp, overlap_percentage in overlaps:
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
-                    if fields[ga.BedCols.FEATURE] == 'transcript':
-                        consensus[ga.BedCols.GENE] = fields[ga.BedCols.GENE]
-                        consensus[ga.BedCols.STRAND] = fields[ga.BedCols.STRAND]
-                        consensus[ga.BedCols.BIOTYPE] = fields[ga.BedCols.BIOTYPE]
-                        consensus[ga.BedCols.ENSEMBL_ID] = fields[ga.BedCols.ENSEMBL_ID]
-                        consensus[ga.BedCols.TSL] = fields[ga.BedCols.TSL]
-                        consensus[ga.BedCols.HUGO] = fields[ga.BedCols.HUGO]
-<<<<<<< HEAD
-                        consensus[ga.BedCols.TX_OVERLAP_BASES] = c_overlap_bp
-                        consensus[ga.BedCols.TX_OVERLAP_PERCENTAGE] = c_overlap_pct
-                    elif fields[ga.BedCols.FEATURE] == 'exon':
-                        consensus[ga.BedCols.EXON_OVERLAPS_BASES] += c_overlap_bp
-                        consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] += c_overlap_pct
-=======
-                        consensus[ga.BedCols.TX_OVERLAP_BASES] = overlap_bp
-                        consensus[ga.BedCols.TX_OVERLAP_PERCENTAGE] = overlap_percentage
-                    elif fields[ga.BedCols.FEATURE] == 'exon':
-                        consensus[ga.BedCols.EXON_OVERLAPS_BASES] += overlap_bp
-                        consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] += overlap_percentage
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
-                        consensus[ga.BedCols.EXON].add(int(fields[ga.BedCols.EXON]))
-                consensus[ga.BedCols.EXON] = sorted(list(consensus[ga.BedCols.EXON]))
-
+            if not gname:
                 annotated.append(consensus)
+                continue
 
-<<<<<<< HEAD
+            # if high_confidence:
+            #     confident_overlaps = (x for xx in overlaps_by_tx.itervalues()
+            #                           for x, overlap_bp in xx if (100.0 * overlap_bp / (int(end) - int(start))) >= 50.0)
+            # else:
+            #     confident_overlaps = (x for xx in overlaps_by_tx.itervalues() for x, _ in xx)
+
+            # Choosing confident transcript overlaps
+            all_tx = (x for xx in overlaps_by_tx.itervalues() for x, overlap_bp in xx
+                       if x[ga.BedCols.FEATURE] == 'transcript' and
+                       (not high_confidence or (100.0 * overlap_bp / (int(end) - int(start))) >= 50.0))
+            tx_sorted_list = [x[ga.BedCols.ENSEMBL_ID] for x in sorted(all_tx, key=tx_sort_key)]
+            if not tx_sorted_list:
+                continue
+            tx_id = tx_sorted_list[0]
+            overlaps = overlaps_by_tx[tx_id]
+
+            # # sort transcripts by "quality" and then select which tx id to report in case of several overlaps
+            # # (will be useful further when interating exons)
+            # annotated_by_tx_by_gene_by_loc = OrderedDict([
+            #     (loc, OrderedDict([
+            #         (gname, sorted(annotated_by_tx.itervalues(), key=tx_sort_key))
+            #             for gname, annotated_by_tx in annotated_by_tx_by_gene.iteritems()
+            #     ])) for loc, annotated_by_tx_by_gene in annotated_by_tx_by_gene_by_loc.iteritems()
+            # ])
+
+            for fields, overlap_size in overlaps:
+                c_overlap_bp = overlap_size
+                c_overlap_pct = 100.0 * c_overlap_bp / (int(end) - int(start))
+
+                if output_features:
+                    f_start = int(fields[1])
+                    f_end = int(fields[2])
+                    feature = features.get((f_start, f_end))
+                    if feature is None:
+                        feature = [None for _ in ga.BedCols.cols]
+                        feature[:len(fields)] = fields
+                        # feature[ga.BedCols.TX_OVERLAP_BASES] = 0
+                        # feature[ga.BedCols.TX_OVERLAP_PERCENTAGE] = 0
+                        features[(f_start, f_end)] = feature
+                    # feature[ga.BedCols.TX_OVERLAP_BASES] += c_overlap_bp
+                    # feature[ga.BedCols.TX_OVERLAP_PERCENTAGE] += 100.0 * c_overlap_bp / (int(f_end) - int(f_start))
+                    # TODO: don't forget to merge BED if not
+
+                if fields[ga.BedCols.FEATURE] == 'transcript':
+                    consensus[ga.BedCols.GENE] = gname
+                    consensus[ga.BedCols.STRAND] = fields[ga.BedCols.STRAND]
+                    consensus[ga.BedCols.BIOTYPE] = fields[ga.BedCols.BIOTYPE]
+                    consensus[ga.BedCols.ENSEMBL_ID] = fields[ga.BedCols.ENSEMBL_ID]
+                    consensus[ga.BedCols.TSL] = fields[ga.BedCols.TSL]
+                    consensus[ga.BedCols.HUGO] = fields[ga.BedCols.HUGO]
+                    consensus[ga.BedCols.TX_OVERLAP_BASES] = c_overlap_bp
+                    consensus[ga.BedCols.TX_OVERLAP_PERCENTAGE] = c_overlap_pct
+                elif fields[ga.BedCols.FEATURE] == 'exon':
+                    consensus[ga.BedCols.EXON_OVERLAPS_BASES] += c_overlap_bp
+                    consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] += c_overlap_pct
+                    consensus[ga.BedCols.EXON].add(int(fields[ga.BedCols.EXON]))
+            consensus[ga.BedCols.EXON] = sorted(list(consensus[ga.BedCols.EXON]))
+
+            annotated.append(consensus)
+
+        features = sorted(features.values(), key=get_sort_key(chrom_order))
         if output_features:
-            annotated.extend(sorted(features.values(), key=get_sort_key(chrom_order)))
-=======
-            else:
-                for fields, overlap_bp, overlap_percentage in overlaps:
-                    fields[:3] = chrom, start, end
-                    fields[ga.BedCols.TX_OVERLAP_BASES] = overlap_bp
-                    fields[ga.BedCols.TX_OVERLAP_PERCENTAGE] = overlap_percentage
-                    annotated.append(fields)
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
-
+            annotated.extend(features)
     return annotated
 
 
-<<<<<<< HEAD
-def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False, short=False,
-              collapse_exons=True, output_features=False):
-=======
-def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False, short=False, collapse_exons=True):
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
+def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False,
+              collapse_exons=True, output_features=False, is_debug=False, work_dir=None):
     # if genome:
         # genome_fpath = cut(fai_fpath, 2, output_fpath=intermediate_fname(work_dir, fai_fpath, 'cut2'))
         # intersection = bed.intersect(ref_bed, sorted=True, wao=True, g='<(cut -f1,2 ' + fai_fpath + ')')
         # intersection = bed.intersect(ref_bed, sorted=True, wao=True, genome=genome.split('-')[0])
     # else:
 
-    if fai_fpath and count_bed_cols(fai_fpath) == 2:
-        intersection = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
-    else:
-        intersection = bed.intersect(ref_bed, wao=True)
+    intersection = None
+    intersection_fpath = None
+    if work_dir and debug:
+        intersection_fpath = join(work_dir, 'intersection.bed')
+        if isfile(intersection_fpath):
+            info('Loading from ' + intersection_fpath)
+            intersection = BedTool(intersection_fpath)
+    if not intersection:
+        if fai_fpath and count_bed_cols(fai_fpath) == 2:
+            intersection = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
+        else:
+            intersection = bed.intersect(ref_bed, wao=True)
+    if debug and work_dir and not isfile(intersection_fpath):
+        intersection.saveas(intersection_fpath)
+        info('Saved to ' + intersection_fpath)
 
     total_annotated = 0
     total_uniq_annotated = 0
+    total_off_target = 0
 
     met = set()
 
-    annotated_by_loc_by_tx_by_gene = OrderedDefaultDict(lambda: OrderedDefaultDict(lambda: defaultdict(list)))
-    off_targets = list()
+    annotated_by_tx_by_gene_by_loc = OrderedDefaultDict(lambda: OrderedDefaultDict(lambda: defaultdict(list)))
+    # off_targets = list()
 
     for intersection_fs in intersection:
         if len(intersection_fs) < 3 + len(ga.BedCols.cols) + 1:
@@ -459,43 +436,32 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False, sh
         overlap_size = int(intersection_fs[-1])
         assert e_chr == '.' or a_chr == e_chr, str((a_chr + ', ' + e_chr))
 
+        fs = [None for _ in ga.BedCols.cols]
+        fs[:3] = [a_chr, a_start, a_end]
+        reg = (a_chr, int(a_start), int(a_end))
+
         if e_chr == '.':
-            fs = [None for _ in ga.BedCols.cols]
-            fs[:3] = [a_chr, a_start, a_end]
-            off_targets.append(fs)
+            total_off_target += 1
+            # off_targets.append(fs)
+            annotated_by_tx_by_gene_by_loc[reg][''][''].append(([], 0))
         else:
-            fs = [None for _ in ga.BedCols.cols]
-            fs[:3] = [a_chr, a_start, a_end]
             fs[3:len(intersection_fs[6:-1])] = intersection_fs[6:-1]
             total_annotated += 1
             if (a_chr, a_start, a_end) not in met:
                 total_uniq_annotated += 1
                 met.add((a_chr, a_start, a_end))
 
-<<<<<<< HEAD
-            annotated_by_loc_by_tx_by_gene[(a_chr, int(a_start), int(a_end))][
-                intersection_fs[3:ga.BedCols.GENE]
-            ][
-                intersection_fs[3+ga.BedCols.ENSEMBL_ID]
-            ].append((intersection_fs[3:-1], overlap_size))
-=======
-            annotated_by_loc_by_gene[(a_chr, int(a_start), int(a_end))][fs[ga.BedCols.ENSEMBL_ID]].append(
-                (fs, overlap_size, 100.0 * overlap_size / (int(a_end) - int(a_start))),
-            )
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
+            gene = intersection_fs[3 + ga.BedCols.GENE] if not high_confidence else intersection_fs[3 + ga.BedCols.HUGO]
+            tx = intersection_fs[3 + ga.BedCols.ENSEMBL_ID]
+            annotated_by_tx_by_gene_by_loc[reg][gene][tx].append((intersection_fs[3:-1], overlap_size))
 
     info('  Total annotated regions: ' + str(total_annotated))
     info('  Total unique annotated regions: ' + str(total_uniq_annotated))
-    info('  Total off target regions: ' + str(len(off_targets)))
+    info('  Total off target regions: ' + str(total_off_target))
     info('Resolving ambiguities...')
-<<<<<<< HEAD
-    annotated = _resolve_ambiguities(annotated_by_loc_by_tx_by_gene, chr_order, collapse_exons,
-         high_confidence, short, output_features)
-=======
-    annotated = _resolve_ambiguities(annotated_by_loc_by_gene, chr_order, collapse_exons)
->>>>>>> 83af7a28d38c14e9c1287475e1cbdc985eb836ce
+    annotated = _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chr_order, collapse_exons, high_confidence, output_features)
 
-    return annotated, off_targets
+    return annotated
 
 
 def _save_regions(regions, fpath):

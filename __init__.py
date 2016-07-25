@@ -158,6 +158,8 @@ def _get(relative_path, genome=None):
         relative_path = relative_path.format(genome=genome)
 
     path = abspath(join(dirname(__file__), relative_path))
+    if not isfile(path) and isfile(path + '.gz'):
+        path += '.gz'
 
     if path.endswith('.bed') or path.endswith('.bed.gz'):
         if path.endswith('.bed.gz'):
