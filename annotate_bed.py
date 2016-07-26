@@ -110,22 +110,22 @@ def main():
     output_fpath = adjust_path(opts.output_file)
 
     work_dir = None
-    prev_output_fpath = None
-    if opts.debug:
-        if isfile(output_fpath):
-            prev_output_fpath = output_fpath + '_' + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-            os.rename(output_fpath, prev_output_fpath)
-        if opts.work_dir:
-            work_dir = safe_mkdir(join(adjust_path(opts.work_dir), basename(input_bed_fpath)))
+    # prev_output_fpath = None
+    # if opts.debug:
+    #     if isfile(output_fpath):
+    #         prev_output_fpath = output_fpath + '_' + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    #         os.rename(output_fpath, prev_output_fpath)
+    if opts.work_dir:
+        work_dir = safe_mkdir(join(adjust_path(opts.work_dir), basename(input_bed_fpath)))
 
     output_fpath = annotate(
         input_bed_fpath, output_fpath, opts.genome, work_dir=work_dir, is_debug=opts.debug,
         only_canonical=opts.only_canonical, short=opts.short, extended=opts.extended, high_confidence=opts.high_confidence,
         collapse_exons=opts.collapse_exons, output_features=opts.output_features)
 
-    if opts.debug:
-        if prev_output_fpath:
-            os.system('diff ' + prev_output_fpath + ' ' + output_fpath)
+    # if opts.debug:
+    #     if prev_output_fpath:
+    #         os.system('diff ' + prev_output_fpath + ' ' + output_fpath)
     info('Done, saved to ' + output_fpath)
 
 
@@ -182,9 +182,6 @@ def annotate(input_bed_fpath, output_fpath, genome=None,
     #     features_bed = features_bed.each(lambda f: f + ['.']*(12-cols))
     if high_confidence:
         features_bed = features_bed.filter(ga.high_confidence_filter)
-    if work_dir and is_debug:
-        features_bed = features_bed.saveas(join(work_dir, 'features_tmp.bed'))
-        print features_bed.fn
     # unique_tx_by_gene = find_best_tx_by_gene(features_bed)
 
     info('Extracting features')
@@ -395,20 +392,20 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False,
         # intersection = bed.intersect(ref_bed, sorted=True, wao=True, genome=genome.split('-')[0])
     # else:
 
-    intersection = None
+    intersection_bed = None
     intersection_fpath = None
-    if work_dir and debug:
+    if work_dir and is_debug:
         intersection_fpath = join(work_dir, 'intersection.bed')
         if isfile(intersection_fpath):
             info('Loading from ' + intersection_fpath)
-            intersection = BedTool(intersection_fpath)
-    if not intersection:
+            intersection_bed = BedTool(intersection_fpath)
+    if not intersection_bed:
         if fai_fpath and count_bed_cols(fai_fpath) == 2:
-            intersection = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
+            intersection_bed = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
         else:
-            intersection = bed.intersect(ref_bed, wao=True)
-    if work_dir and debug and not isfile(intersection_fpath):
-        intersection.saveas(intersection_fpath)
+            intersection_bed = bed.intersect(ref_bed, wao=True)
+    if work_dir and is_debug and not isfile(intersection_fpath):
+        intersection_bed.saveas(intersection_fpath)
         info('Saved to ' + intersection_fpath)
 
     total_annotated = 0
@@ -420,13 +417,15 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False,
     annotated_by_tx_by_gene_by_loc = OrderedDefaultDict(lambda: OrderedDefaultDict(lambda: defaultdict(list)))
     # off_targets = list()
 
-    for intersection_fs in intersection:
-        if len(intersection_fs) < 3 + len(ga.BedCols.cols) + 1:
+    for inters_fields in intersection_bed:
+        inters_list = list(inters_fields)
+        if len(inters_list) < 3 + len(ga.BedCols.cols) - 2 + 1:
             critical('Cannot parse the reference BED file - unexpected number of lines '
-                     '(' + str(len(intersection_fs)) + ') in ' + str(intersection_fs))
+                     '(' + str(len(inters_list)) + ') in ' + str(inters_list) +
+                     ' (less than ' + str(3 + len(ga.BedCols.cols) - 2 + 1) + ')')
 
-        a_chr, a_start, a_end, e_chr = intersection_fs[:4]
-        overlap_size = int(intersection_fs[-1])
+        a_chr, a_start, a_end, e_chr = inters_fields[:4]
+        overlap_size = int(inters_fields[-1])
         assert e_chr == '.' or a_chr == e_chr, str((a_chr + ', ' + e_chr))
 
         fs = [None for _ in ga.BedCols.cols]
@@ -438,15 +437,15 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False,
             # off_targets.append(fs)
             annotated_by_tx_by_gene_by_loc[reg][''][''].append(([], 0))
         else:
-            fs[3:len(intersection_fs[6:-1])] = intersection_fs[6:-1]
+            fs[3:len(inters_fields[6:-1])] = inters_fields[6:-1]
             total_annotated += 1
             if (a_chr, a_start, a_end) not in met:
                 total_uniq_annotated += 1
                 met.add((a_chr, a_start, a_end))
 
-            gene = intersection_fs[3 + ga.BedCols.GENE] if not high_confidence else intersection_fs[3 + ga.BedCols.HUGO]
-            tx = intersection_fs[3 + ga.BedCols.ENSEMBL_ID]
-            annotated_by_tx_by_gene_by_loc[reg][gene][tx].append((intersection_fs[3:-1], overlap_size))
+            gene = inters_fields[3 + ga.BedCols.GENE] if not high_confidence else inters_fields[3 + ga.BedCols.HUGO]
+            tx = inters_fields[3 + ga.BedCols.ENSEMBL_ID]
+            annotated_by_tx_by_gene_by_loc[reg][gene][tx].append((inters_fields[3:-1], overlap_size))
 
     info('  Total annotated regions: ' + str(total_annotated))
     info('  Total unique annotated regions: ' + str(total_uniq_annotated))
