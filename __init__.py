@@ -19,11 +19,9 @@ class BedCols:
     ENSEMBL_ID, \
     TSL, \
     HUGO, \
-    TX_OVERLAP_BASES, \
     TX_OVERLAP_PERCENTAGE, \
-    EXON_OVERLAPS_BASES, \
     EXON_OVERLAPS_PERCENTAGE \
-        = cols = range(15)
+        = cols = range(13)
 
     names = {
         CHROM: '#Chrom',
@@ -37,10 +35,10 @@ class BedCols:
         ENSEMBL_ID: 'Ensembl_ID',
         TSL: 'TSL',
         HUGO: 'HUGO',
-        TX_OVERLAP_BASES: 'Tx overlap bp',
-        TX_OVERLAP_PERCENTAGE: 'Tx overlap %',
-        EXON_OVERLAPS_BASES: 'Exon overlaps bp',
-        EXON_OVERLAPS_PERCENTAGE: 'Exon overlaps %',
+        # TX_OVERLAP_BASES: 'Tx_overlap_bp',
+        TX_OVERLAP_PERCENTAGE: 'Tx_overlap_%',
+        # EXON_OVERLAPS_BASES: 'Exon_overlaps_bp',
+        EXON_OVERLAPS_PERCENTAGE: 'Exon_overlaps_%',
     }
 
 SUPPORTED_GENOMES = ['hg19', 'hg19-noalt', 'hg38', 'hg38-noalt']

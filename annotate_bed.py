@@ -249,7 +249,7 @@ class Region(SortableByChrom):
 
 def _format_field(value):
     if isinstance(value, list) or isinstance(value, set):
-        return ', '.join(_format_field(v) for v in value)
+        return ', '.join(_format_field(v) for v in value) or '.'
     elif isinstance(value, float):
         return '{:.1f}'.format(value)
     else:
@@ -313,7 +313,7 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
             consensus = [None for _ in ga.BedCols.cols]
             consensus[:3] = chrom, start, end
             consensus[ga.BedCols.FEATURE] = 'capture'
-            consensus[ga.BedCols.EXON_OVERLAPS_BASES] = 0
+            # consensus[ga.BedCols.EXON_OVERLAPS_BASES] = 0
             consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] = 0
             consensus[ga.BedCols.EXON] = set()
 
@@ -371,10 +371,10 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
                     consensus[ga.BedCols.ENSEMBL_ID] = fields[ga.BedCols.ENSEMBL_ID]
                     consensus[ga.BedCols.TSL] = fields[ga.BedCols.TSL]
                     consensus[ga.BedCols.HUGO] = fields[ga.BedCols.HUGO]
-                    consensus[ga.BedCols.TX_OVERLAP_BASES] = c_overlap_bp
+                    # consensus[ga.BedCols.TX_OVERLAP_BASES] = c_overlap_bp
                     consensus[ga.BedCols.TX_OVERLAP_PERCENTAGE] = c_overlap_pct
                 elif fields[ga.BedCols.FEATURE] == 'exon':
-                    consensus[ga.BedCols.EXON_OVERLAPS_BASES] += c_overlap_bp
+                    # consensus[ga.BedCols.EXON_OVERLAPS_BASES] += c_overlap_bp
                     consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] += c_overlap_pct
                     consensus[ga.BedCols.EXON].add(int(fields[ga.BedCols.EXON]))
             consensus[ga.BedCols.EXON] = sorted(list(consensus[ga.BedCols.EXON]))

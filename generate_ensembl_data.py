@@ -93,7 +93,7 @@ Usage:
             tx_biotype = bm_tx_biotype
             if rec.end - rec.start < 0:
                 continue
-            tsl = bm_tsl.split()[0].replace('tsl', '.') if bm_tsl else None
+            tsl = bm_tsl.split()[0].replace('tsl', '') if bm_tsl else None
 
             fs = [None] * len(ga.BedCols.cols[:-4])
             if not rec.chrom.startswith('chr'):
