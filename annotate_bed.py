@@ -6,15 +6,18 @@ from collections import defaultdict, OrderedDict
 from os.path import isfile, join, basename
 
 from datetime import datetime
+from tempfile import mkdtemp
+
+import shutil
 from pybedtools import BedTool
 
 import GeneAnnotation as ga
 from Utils import reference_data
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
-from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom, cut, count_bed_cols
+from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom, cut, count_bed_cols, sort_bed
 from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which, intermediate_fname, adjust_path, \
-    safe_mkdir
+    safe_mkdir, add_suffix
 from Utils.logger import critical, info
 from Utils import logger
 
@@ -109,19 +112,27 @@ def main():
 
     output_fpath = adjust_path(opts.output_file)
 
-    work_dir = None
     # prev_output_fpath = None
     # if opts.debug:
     #     if isfile(output_fpath):
     #         prev_output_fpath = output_fpath + '_' + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     #         os.rename(output_fpath, prev_output_fpath)
     if opts.work_dir:
-        work_dir = safe_mkdir(join(adjust_path(opts.work_dir), basename(input_bed_fpath)))
+        work_dir = join(adjust_path(opts.work_dir), os.path.splitext(basename(input_bed_fpath))[0])
+        safe_mkdir(work_dir)
+        info('Created work directory ' + work_dir)
+    else:
+        work_dir = mkdtemp('bed_annotate_')
+        info('Created temporary work directory ' + work_dir)
 
     output_fpath = annotate(
-        input_bed_fpath, output_fpath, opts.genome, work_dir=work_dir, is_debug=opts.debug,
+        input_bed_fpath, output_fpath, work_dir, genome=opts.genome, is_debug=opts.debug,
         only_canonical=opts.only_canonical, short=opts.short, extended=opts.extended, high_confidence=opts.high_confidence,
         collapse_exons=opts.collapse_exons, output_features=opts.output_features)
+
+    if not opts.work_dir:
+        debug('Removing work directory ' + work_dir)
+        shutil.rmtree(work_dir)
 
     # if opts.debug:
     #     if prev_output_fpath:
@@ -153,8 +164,8 @@ def get_sort_key(chr_order):
             fs[ga.BedCols.GENE])
 
 
-def annotate(input_bed_fpath, output_fpath, genome=None,
-             work_dir=None, is_debug=False, reuse=False,
+def annotate(input_bed_fpath, output_fpath, work_dir, genome=None,
+             is_debug=False, reuse=False,
              only_canonical=False, short=False, extended=False, high_confidence=False,
              collapse_exons=True, output_features=False):
 
@@ -174,6 +185,8 @@ def annotate(input_bed_fpath, output_fpath, genome=None,
         fai_fpath = None
         chr_order = bed_chrom_order(input_bed_fpath)
 
+    input_bed_fpath = sort_bed(input_bed_fpath, work_dir=work_dir, chr_order=chr_order, genome=genome, reuse=reuse)
+
     bed = BedTool(input_bed_fpath).cut([0, 1, 2])
 
     # features_bed = features_bed.saveas()
@@ -190,13 +203,16 @@ def annotate(input_bed_fpath, output_fpath, genome=None,
         # x[ga.BedCols.ENSEMBL_ID] == unique_tx_by_gene[x[ga.BedCols.GENE]])
 
     info('Annotating...')
-    annotated = _annotate(bed.saveas(join(work_dir, 'bed.bed')), features_bed.saveas(join(work_dir, 'features.bed')), chr_order, fai_fpath,
-        high_confidence, collapse_exons, output_features, is_debug, work_dir)
+    if is_debug:
+        bed = bed.saveas(join(work_dir, 'bed.bed'))
+        features_bed = features_bed.saveas(join(work_dir, 'features.bed'))
+    annotated = _annotate(bed, features_bed, chr_order, work_dir, fai_fpath,
+        high_confidence, collapse_exons, output_features, is_debug)
 
     header = [ga.BedCols.names[i] for i in ga.BedCols.cols]
 
     info('Saving annotated regions...')
-    with file_transaction(None, output_fpath) as tx:
+    with file_transaction(work_dir, output_fpath) as tx:
         with open(tx, 'w') as out:
             if short:
                 header = header[:4]
@@ -209,6 +225,7 @@ def annotate(input_bed_fpath, output_fpath, genome=None,
                 if not extended:
                     fields = fields[:6]
                 out.write('\t'.join(map(_format_field, fields)) + '\n')
+
     return output_fpath
 
 
@@ -384,8 +401,8 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
     return annotated
 
 
-def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False,
-              collapse_exons=True, output_features=False, is_debug=False, work_dir=None):
+def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence=False,
+              collapse_exons=True, output_features=False, is_debug=False):
     # if genome:
         # genome_fpath = cut(fai_fpath, 2, output_fpath=intermediate_fname(work_dir, fai_fpath, 'cut2'))
         # intersection = bed.intersect(ref_bed, sorted=True, wao=True, g='<(cut -f1,2 ' + fai_fpath + ')')
@@ -394,7 +411,7 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False,
 
     intersection_bed = None
     intersection_fpath = None
-    if work_dir and is_debug:
+    if is_debug:
         intersection_fpath = join(work_dir, 'intersection.bed')
         if isfile(intersection_fpath):
             info('Loading from ' + intersection_fpath)
@@ -404,7 +421,7 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath=None, high_confidence=False,
             intersection_bed = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
         else:
             intersection_bed = bed.intersect(ref_bed, wao=True)
-    if work_dir and is_debug and not isfile(intersection_fpath):
+    if is_debug and not isfile(intersection_fpath):
         intersection_bed.saveas(intersection_fpath)
         info('Saved to ' + intersection_fpath)
 
