@@ -173,13 +173,13 @@ def _get(relative_path, genome=None):
             bedtools = which('bedtools')
             bedtools_v = bedtools_version(bedtools)
             if bedtools_v > 25:
-                debug('Bed is compressed, creating BedTool')
+                debug('BED is compressed, creating BedTool')
                 bed = BedTool(path)
             else:
                 debug('BedTools version is < ' + str(bedtools_v) + ', extracting BED file')
                 bed = BedTool(open_gzipsafe(path))
         else:
-            debug('Bed is uncompressed, creating BedTool')
+            debug('BED is uncompressed, creating BedTool')
             bed = BedTool(path)
 
         if chrom:
