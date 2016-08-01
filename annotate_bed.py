@@ -122,8 +122,8 @@ def main():
         safe_mkdir(work_dir)
         info('Created work directory ' + work_dir)
     else:
-        work_dir = mkdtemp('bed_annotate_')
-        info('Created temporary work directory ' + work_dir)
+        work_dir = mkdtemp('bed_annotate')
+        debug('Created temporary work directory ' + work_dir)
 
     output_fpath = annotate(
         input_bed_fpath, output_fpath, work_dir, genome=opts.genome, is_debug=opts.debug,
