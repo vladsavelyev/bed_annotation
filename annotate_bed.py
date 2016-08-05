@@ -165,14 +165,9 @@ def get_sort_key(chr_order):
 
 
 def annotate(input_bed_fpath, output_fpath, work_dir, genome=None,
-             is_debug=False, reuse=False,
+             is_debug=False,
              only_canonical=False, short=False, extended=False, high_confidence=False,
              collapse_exons=True, output_features=False):
-
-    if reuse and isfile(output_fpath) and verify_file(output_fpath):
-        debug(output_fpath + ' exists, reusing.')
-        return output_fpath
-
     debug('Getting features from storage')
     features_bed = ga.get_all_features(genome)
     if features_bed is None:
