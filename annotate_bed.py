@@ -164,10 +164,17 @@ def get_sort_key(chr_order):
             fs[ga.BedCols.GENE])
 
 
-def annotate(input_bed_fpath, output_fpath, work_dir, genome=None,
-             is_debug=False,
-             only_canonical=False, short=False, extended=False, high_confidence=False,
-             collapse_exons=True, output_features=False):
+def overlap_with_features(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=False,
+             only_canonical=False, extended=False, high_confidence=False, collapse_exons=True,
+             reannotate=False):
+    return annotate(input_bed_fpath, output_fpath, work_dir, genome=genome, is_debug=is_debug,
+             only_canonical=only_canonical, extended=extended, high_confidence=high_confidence, collapse_exons=collapse_exons,
+             short=False, output_features=True, reannotate=reannotate)
+
+
+def annotate(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=False,
+             only_canonical=False, extended=False, high_confidence=False, collapse_exons=True,
+             short=False, output_features=False, reannotate=True):
     debug('Getting features from storage')
     features_bed = ga.get_all_features(genome)
     if features_bed is None:
@@ -180,9 +187,22 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None,
         fai_fpath = None
         chr_order = bed_chrom_order(input_bed_fpath)
 
-    input_bed_fpath = sort_bed(input_bed_fpath, work_dir=work_dir, chr_order=chr_order, genome=genome, reuse=reuse)
+    input_bed_fpath = sort_bed(input_bed_fpath, work_dir=work_dir, chr_order=chr_order, genome=genome)
 
-    bed = BedTool(input_bed_fpath).cut([0, 1, 2])
+    bed = BedTool(input_bed_fpath)
+    col_num = bed.field_count()
+    if col_num == 3:
+        keep_gene_column = False
+    elif col_num > 3:
+        if reannotate:
+            bed = BedTool(input_bed_fpath).cut([0, 1, 2])
+            keep_gene_column = False
+        else:
+            if col_num > 4:
+                bed = BedTool(input_bed_fpath).cut([0, 1, 2, 3])
+            keep_gene_column = True
+    else:
+        critical('Error: BED column number is ' + str(col_num) + ' in ' + input_bed_fpath)
 
     # features_bed = features_bed.saveas()
     # cols = features_bed.field_count()
@@ -201,8 +221,9 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None,
     if is_debug:
         bed = bed.saveas(join(work_dir, 'bed.bed'))
         features_bed = features_bed.saveas(join(work_dir, 'features.bed'))
-    annotated = _annotate(bed, features_bed, chr_order, work_dir, fai_fpath,
-        high_confidence, collapse_exons, output_features, is_debug)
+    annotated = _annotate(bed, features_bed, chr_order, work_dir, fai_fpath=fai_fpath,
+        high_confidence=high_confidence, collapse_exons=collapse_exons,
+        output_features=output_features, is_debug=is_debug, keep_gene_column=keep_gene_column)
 
     header = [ga.BedCols.names[i] for i in ga.BedCols.cols]
 
@@ -321,12 +342,14 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
         for gname, overlaps_by_tx in overlaps_by_tx_by_gene.iteritems():
             consensus = [None for _ in ga.BedCols.cols]
             consensus[:3] = chrom, start, end
+            if gname:
+                consensus[3] = gname
             consensus[ga.BedCols.FEATURE] = 'capture'
             # consensus[ga.BedCols.EXON_OVERLAPS_BASES] = 0
             consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] = 0
             consensus[ga.BedCols.EXON] = set()
 
-            if not gname:
+            if not overlaps_by_tx:  # not annotated or already annotated but gene did not match the intersection
                 annotated.append(consensus)
                 continue
 
@@ -397,7 +420,7 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
 
 
 def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence=False,
-              collapse_exons=True, output_features=False, is_debug=False):
+              collapse_exons=True, output_features=False, is_debug=False, keep_gene_column=False):
     # if genome:
         # genome_fpath = cut(fai_fpath, 2, output_fpath=intermediate_fname(work_dir, fai_fpath, 'cut2'))
         # intersection = bed.intersect(ref_bed, sorted=True, wao=True, g='<(cut -f1,2 ' + fai_fpath + ')')
@@ -412,13 +435,15 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
             info('Loading from ' + intersection_fpath)
             intersection_bed = BedTool(intersection_fpath)
     if not intersection_bed:
-        if fai_fpath and count_bed_cols(fai_fpath) == 2:
+        if count_bed_cols(fai_fpath) == 2:
+            debug('Fai fields size is 2 ' + fai_fpath)
             intersection_bed = bed.intersect(ref_bed, wao=True, sorted=True, g=fai_fpath)
         else:
+            debug('Fai fields is ' + str(count_bed_cols(fai_fpath)) + ', not 2')
             intersection_bed = bed.intersect(ref_bed, wao=True)
     if is_debug and not isfile(intersection_fpath):
         intersection_bed.saveas(intersection_fpath)
-        info('Saved to ' + intersection_fpath)
+        debug('Saved intersection to ' + intersection_fpath)
 
     total_annotated = 0
     total_uniq_annotated = 0
@@ -436,7 +461,15 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
                      '(' + str(len(inters_list)) + ') in ' + str(inters_list) +
                      ' (less than ' + str(3 + len(ga.BedCols.cols) - 2 + 1) + ')')
 
-        a_chr, a_start, a_end, e_chr = inters_fields[:4]
+        a_chr, a_start, a_end = inters_fields[:3]
+        if keep_gene_column:
+            a_gene = inters_fields[3]
+            feature_fields = inters_fields[4:]
+        else:
+            a_gene = None
+            feature_fields = inters_fields[3:]
+
+        e_chr = feature_fields[0]
         overlap_size = int(inters_fields[-1])
         assert e_chr == '.' or a_chr == e_chr, str((a_chr + ', ' + e_chr))
 
@@ -447,17 +480,21 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
         if e_chr == '.':
             total_off_target += 1
             # off_targets.append(fs)
-            annotated_by_tx_by_gene_by_loc[reg][''][''].append(([], 0))
+            if keep_gene_column:
+                annotated_by_tx_by_gene_by_loc[reg][a_gene] = None
         else:
-            fs[3:len(inters_fields[6:-1])] = inters_fields[6:-1]
+            fs[len(feature_fields[3:-1])] = feature_fields[3:-1]
             total_annotated += 1
             if (a_chr, a_start, a_end) not in met:
                 total_uniq_annotated += 1
                 met.add((a_chr, a_start, a_end))
 
-            gene = inters_fields[3 + ga.BedCols.GENE] if not high_confidence else inters_fields[3 + ga.BedCols.HUGO]
-            tx = inters_fields[3 + ga.BedCols.ENSEMBL_ID]
-            annotated_by_tx_by_gene_by_loc[reg][gene][tx].append((inters_fields[3:-1], overlap_size))
+            e_gene = feature_fields[ga.BedCols.GENE] if not high_confidence else feature_fields[ga.BedCols.HUGO]
+            if keep_gene_column and e_gene != a_gene:
+                annotated_by_tx_by_gene_by_loc[reg][a_gene] = None
+            else:
+                tx = feature_fields[ga.BedCols.ENSEMBL_ID]
+                annotated_by_tx_by_gene_by_loc[reg][e_gene][tx].append((feature_fields[:-1], overlap_size))
 
     info('  Total annotated regions: ' + str(total_annotated))
     info('  Total unique annotated regions: ' + str(total_uniq_annotated))
