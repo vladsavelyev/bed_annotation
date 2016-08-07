@@ -481,7 +481,7 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
             total_off_target += 1
             # off_targets.append(fs)
             if keep_gene_column:
-                annotated_by_tx_by_gene_by_loc[reg][a_gene] = None
+                annotated_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
         else:
             fs[len(feature_fields[3:-1])] = feature_fields[3:-1]
             total_annotated += 1
@@ -491,7 +491,7 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
 
             e_gene = feature_fields[ga.BedCols.GENE] if not high_confidence else feature_fields[ga.BedCols.HUGO]
             if keep_gene_column and e_gene != a_gene:
-                annotated_by_tx_by_gene_by_loc[reg][a_gene] = None
+                annotated_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
             else:
                 tx = feature_fields[ga.BedCols.ENSEMBL_ID]
                 annotated_by_tx_by_gene_by_loc[reg][e_gene][tx].append((feature_fields[:-1], overlap_size))
