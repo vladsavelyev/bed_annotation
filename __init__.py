@@ -1,10 +1,11 @@
+import os
 from os.path import dirname, join, abspath, isfile, basename, splitext
 import sys
 from pybedtools import BedTool
 
 from Utils.bed_utils import bedtools_version
 from Utils.file_utils import which, open_gzipsafe
-from Utils.logger import debug
+from Utils.logger import debug, critical
 
 
 class BedCols:
@@ -171,6 +172,8 @@ def _get(relative_path, genome=None):
     if path.endswith('.bed') or path.endswith('.bed.gz'):
         if path.endswith('.bed.gz'):
             bedtools = which('bedtools')
+            if not bedtools:
+                critical('bedtools not found in PATH: ' + str(os.environ['PATH']))
             bedtools_v = bedtools_version(bedtools)
             if bedtools_v > 25:
                 debug('BED is compressed, creating BedTool')
