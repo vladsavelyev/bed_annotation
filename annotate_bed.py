@@ -191,9 +191,8 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=Fals
 
     bed = BedTool(input_bed_fpath)
     col_num = bed.field_count()
-    if col_num == 3:
-        keep_gene_column = False
-    elif col_num > 3:
+    keep_gene_column = False
+    if col_num > 3:
         if reannotate:
             bed = BedTool(input_bed_fpath).cut([0, 1, 2])
             keep_gene_column = False
@@ -201,8 +200,6 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=Fals
             if col_num > 4:
                 bed = BedTool(input_bed_fpath).cut([0, 1, 2, 3])
             keep_gene_column = True
-    else:
-        critical('Error: BED column number is ' + str(col_num) + ' in ' + input_bed_fpath)
 
     # features_bed = features_bed.saveas()
     # cols = features_bed.field_count()
@@ -462,6 +459,7 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
                      ' (less than ' + str(3 + len(ga.BedCols.cols) - 2 + 1) + ')')
 
         a_chr, a_start, a_end = inters_fields[:3]
+
         if keep_gene_column:
             a_gene = inters_fields[3]
             feature_fields = inters_fields[4:]
@@ -480,8 +478,8 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
         if e_chr == '.':
             total_off_target += 1
             # off_targets.append(fs)
-            if keep_gene_column:
-                annotated_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
+            annotated_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
+
         else:
             fs[len(feature_fields[3:-1])] = feature_fields[3:-1]
             total_annotated += 1
