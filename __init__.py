@@ -1,7 +1,7 @@
 import os
 from os.path import dirname, join, abspath, isfile, basename, splitext
 import sys
-from pybedtools import BedTool
+from Utils.bedtools import BedTool
 
 from Utils.bed_utils import bedtools_version
 from Utils.file_utils import which, open_gzipsafe

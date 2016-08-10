@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 import os
-from itertools import izip, count
 from optparse import OptionParser, SUPPRESS_HELP
 from collections import defaultdict, OrderedDict
 from os.path import isfile, join, basename
-
-from datetime import datetime
 from tempfile import mkdtemp
-
 import shutil
-from pybedtools import BedTool
 
 import GeneAnnotation as ga
+
+from Utils.bedtools import BedTool
 from Utils import reference_data
 from Utils.logger import warn, debug
 from Utils.utils import OrderedDefaultDict
