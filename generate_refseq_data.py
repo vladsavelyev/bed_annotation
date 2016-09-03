@@ -23,6 +23,7 @@ DO_APPROVE = False
 # LOCAL:
 generate.py hg19
 generate.py hg38
+generate.py mm10
 
 grep -v "_hap" all_features.hg19.bed                 > all_features.hg19-noalt.bed
 grep -v "_alt" all_features.hg38.bed                 > all_features.hg38-noalt.bed
@@ -165,7 +166,7 @@ See more info in http://wiki.rd.astrazeneca.net/display/NG/SOP+-+Making+the+full
 
     info()
     info('Sorting and printing all regions...')
-    all_features_fpath = ga.get_all_features(genome_name, gzip=False)
+    all_features_fpath = ga.get_all_features(genome_name)
     write_all_features(genes, all_features_fpath, canon_only=False)
     all_features_fpath = bgzip_and_tabix(all_features_fpath, tabix_parameters='-p bed')
 

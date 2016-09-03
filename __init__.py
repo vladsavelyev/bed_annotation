@@ -8,6 +8,8 @@ from Utils.file_utils import which, open_gzipsafe
 from Utils.logger import debug, critical
 
 
+SUPPORTED_GENOMES = ['hg19', 'hg19-noalt', 'hg38', 'hg38-noalt', 'mm10']
+
 class BedCols:
     CHROM, \
     START, \
@@ -41,8 +43,6 @@ class BedCols:
         # EXON_OVERLAPS_BASES: 'Exon_overlaps_bp',
         EXON_OVERLAPS_PERCENTAGE: 'Exon_overlaps_%',
     }
-
-SUPPORTED_GENOMES = ['hg19', 'hg19-noalt', 'hg38', 'hg38-noalt']
 
 def check_genome(genome):
     if genome not in SUPPORTED_GENOMES:
