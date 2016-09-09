@@ -10,11 +10,10 @@ import GeneAnnotation as ga
 
 from Utils.bedtools import BedTool
 from Utils import reference_data
-from Utils.logger import warn, debug
+from Utils.logger import debug
 from Utils.utils import OrderedDefaultDict
-from Utils.bed_utils import verify_bed, bedtools_version, SortableByChrom, cut, count_bed_cols, sort_bed
-from Utils.file_utils import verify_file, file_transaction, open_gzipsafe, which, intermediate_fname, adjust_path, \
-    safe_mkdir, add_suffix
+from Utils.bed_utils import verify_bed, SortableByChrom, count_bed_cols, sort_bed
+from Utils.file_utils import file_transaction, adjust_path, safe_mkdir
 from Utils.logger import critical, info
 from Utils import logger
 
