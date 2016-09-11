@@ -92,6 +92,9 @@ def main():
     opts, args = parser.parse_args()
     logger.is_debug = opts.debug
 
+    if not opts.genome:
+        critical('Error: please, specify genome build name with -g (e.g. `-g hg19`)')
+
     if opts.short:
         if opts.extended:        critical('--short and --extended can\'t be set both')
         if opts.output_features: critical('--short and --output-features can\'t be set both')
