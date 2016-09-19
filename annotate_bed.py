@@ -50,7 +50,13 @@ def main():
             dest='short',
             action='store_true',
             default=False,
-            help='Add only "Gene" column',
+            help='Add only "Gene" column (so make 4-column BED file)',
+        )),
+        (['--cds-only'], dict(
+            dest='cds_only',
+            action='store_true',
+            default=False,
+            help='Use only CDS to annotate',
         )),
         (['--extended'], dict(
             dest='extended',
@@ -68,7 +74,7 @@ def main():
             dest='seq2c',
             action='store_true',
             default=False,
-            help='Equals to 3 flags set: --canonical, --short, --high-confidence',
+            help='Equals to --canonical, --high-confidence, --cds',
         )),
         (['--debug'], dict(
             dest='debug',
@@ -102,8 +108,8 @@ def main():
         opts.extended = True
         opts.short = False
     if opts.seq2c:
-        opts.short = opts.high_confidence = opts.only_canonical = True
-        opts.output_features = opts.extended = False
+        opts.high_confidence = opts.only_canonical = opts.cds_only = True
+        opts.output_features = False
 
     if len(args) < 1:
         parser.exit('Usage: ' + __file__ + ' Input_BED_file -g hg19 -o Annotated_BED_file [--canonical]')
@@ -126,8 +132,9 @@ def main():
 
     output_fpath = annotate(
         input_bed_fpath, output_fpath, work_dir, genome=opts.genome, is_debug=opts.debug,
-        only_canonical=opts.only_canonical, short=opts.short, extended=opts.extended, high_confidence=opts.high_confidence,
-        collapse_exons=opts.collapse_exons, output_features=opts.output_features)
+        only_canonical=opts.only_canonical, short=opts.short, extended=opts.extended,
+        high_confidence=opts.high_confidence, collapse_exons=opts.collapse_exons,
+        output_features=opts.output_features, cds_only=opts.cds_only, for_seq2c=opts.seq2c)
 
     if not opts.work_dir:
         debug('Removing work directory ' + work_dir)
@@ -165,15 +172,16 @@ def get_sort_key(chr_order):
 
 def overlap_with_features(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=False,
              only_canonical=False, extended=False, high_confidence=False, collapse_exons=True,
-             reannotate=False):
+             reannotate=False, cds_only=False, for_seq2c=False):
     return annotate(input_bed_fpath, output_fpath, work_dir, genome=genome, is_debug=is_debug,
-             only_canonical=only_canonical, extended=extended, high_confidence=high_confidence, collapse_exons=collapse_exons,
-             short=False, output_features=True, reannotate=reannotate)
+             only_canonical=only_canonical, extended=extended, high_confidence=high_confidence,
+             collapse_exons=collapse_exons, short=False, output_features=True, reannotate=reannotate,
+             cds_only=cds_only, for_seq2c=for_seq2c)
 
 
 def annotate(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=False,
              only_canonical=False, extended=False, high_confidence=False, collapse_exons=True,
-             short=False, output_features=False, reannotate=True):
+             short=False, output_features=False, reannotate=True, cds_only=False, for_seq2c=False):
     debug('Getting features from storage')
     features_bed = ga.get_all_features(genome)
     if features_bed is None:
@@ -206,6 +214,8 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=Fals
     #     features_bed = features_bed.each(lambda f: f + ['.']*(12-cols))
     if high_confidence:
         features_bed = features_bed.filter(ga.high_confidence_filter)
+    if cds_only:
+        features_bed = features_bed.filter(ga.protein_coding_filter)
     # unique_tx_by_gene = find_best_tx_by_gene(features_bed)
 
     info('Extracting features')
@@ -218,7 +228,7 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=Fals
         bed = bed.saveas(join(work_dir, 'bed.bed'))
         features_bed = features_bed.saveas(join(work_dir, 'features.bed'))
     annotated = _annotate(bed, features_bed, chr_order, work_dir, fai_fpath=fai_fpath,
-        high_confidence=high_confidence, collapse_exons=collapse_exons,
+        high_confidence=high_confidence, collapse_exons=collapse_exons, for_seq2c=for_seq2c,
         output_features=output_features, is_debug=is_debug, keep_gene_column=keep_gene_column)
 
     header = [ga.BedCols.names[i] for i in ga.BedCols.cols]
@@ -230,6 +240,12 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=Fals
                 header = header[:4]
             if not extended:
                 header = header[:6]
+            out.write('## ' + ga.BedCols.names[ga.BedCols.TX_OVERLAP_PERCENTAGE] +
+                      ': part of region overlapping with transcripts\n')
+            out.write('## ' + ga.BedCols.names[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] +
+                      ': part of region overlapping with exons\n')
+            out.write('## ' + ga.BedCols.names[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] +
+                      ': part of region overlapping with protein coding regions\n')
             out.write('\t'.join(header) + '\n')
             for fields in annotated:
                 if short:
@@ -322,7 +338,7 @@ def tx_sort_key(x):
 
 
 def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_exons=True,
-                         high_confidence=False, output_features=False):
+                         high_confidence=False, output_features=False, for_seq2c=False):
     # sort transcripts by "quality" and then select which tx id to report in case of several overlaps
     # (will be useful further when interating exons)
     # annotated_by_tx_by_gene_by_loc = OrderedDict([
@@ -335,6 +351,7 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
     annotated = []
     for (chrom, start, end), overlaps_by_tx_by_gene in annotated_by_tx_by_gene_by_loc.iteritems():
         features = dict()
+        annotation_alternatives = []
         for gname, overlaps_by_tx in overlaps_by_tx_by_gene.iteritems():
             consensus = [None for _ in ga.BedCols.cols]
             consensus[:3] = chrom, start, end
@@ -343,7 +360,11 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
             consensus[ga.BedCols.FEATURE] = 'capture'
             # consensus[ga.BedCols.EXON_OVERLAPS_BASES] = 0
             consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] = 0
+            consensus[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] = 0
             consensus[ga.BedCols.EXON] = set()
+
+            if start == 11189801:
+                pass
 
             if not overlaps_by_tx:  # not annotated or already annotated but gene did not match the intersection
                 annotated.append(consensus)
@@ -401,13 +422,23 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
                     consensus[ga.BedCols.HUGO] = fields[ga.BedCols.HUGO]
                     # consensus[ga.BedCols.TX_OVERLAP_BASES] = c_overlap_bp
                     consensus[ga.BedCols.TX_OVERLAP_PERCENTAGE] = c_overlap_pct
+
                 elif fields[ga.BedCols.FEATURE] == 'exon':
-                    # consensus[ga.BedCols.EXON_OVERLAPS_BASES] += c_overlap_bp
                     consensus[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] += c_overlap_pct
                     consensus[ga.BedCols.EXON].add(int(fields[ga.BedCols.EXON]))
+
+                elif fields[ga.BedCols.FEATURE] == 'CDS':
+                    consensus[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] += c_overlap_pct
+
             consensus[ga.BedCols.EXON] = sorted(list(consensus[ga.BedCols.EXON]))
 
-            annotated.append(consensus)
+            # annotated.append(consensus)
+            annotation_alternatives.append(consensus)
+
+        if for_seq2c and len(annotation_alternatives) > 1:
+            annotation_alternatives = [a for a in annotation_alternatives if a[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] > 0]
+
+        annotated.extend(annotation_alternatives)
 
         features = sorted(features.values(), key=get_sort_key(chrom_order))
         if output_features:
@@ -416,7 +447,8 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
 
 
 def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence=False,
-              collapse_exons=True, output_features=False, is_debug=False, keep_gene_column=False):
+              collapse_exons=True, output_features=False, is_debug=False,
+              keep_gene_column=False, for_seq2c=False):
     # if genome:
         # genome_fpath = cut(fai_fpath, 2, output_fpath=intermediate_fname(work_dir, fai_fpath, 'cut2'))
         # intersection = bed.intersect(ref_bed, sorted=True, wao=True, g='<(cut -f1,2 ' + fai_fpath + ')')
@@ -452,7 +484,7 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
 
     for inters_fields in intersection_bed:
         inters_list = list(inters_fields)
-        if len(inters_list) < 3 + len(ga.BedCols.cols) - 2 + 1:
+        if len(inters_list) < 3 + len(ga.BedCols.cols) - 3 + 1:
             critical('Cannot parse the reference BED file - unexpected number of lines '
                      '(' + str(len(inters_list)) + ') in ' + str(inters_list) +
                      ' (less than ' + str(3 + len(ga.BedCols.cols) - 2 + 1) + ')')
@@ -497,7 +529,8 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
     info('  Total unique annotated regions: ' + str(total_uniq_annotated))
     info('  Total off target regions: ' + str(total_off_target))
     info('Resolving ambiguities...')
-    annotated = _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chr_order, collapse_exons, high_confidence, output_features)
+    annotated = _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chr_order, collapse_exons,
+                                     high_confidence, output_features, for_seq2c)
 
     return annotated
 

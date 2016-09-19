@@ -23,8 +23,9 @@ class BedCols:
     TSL, \
     HUGO, \
     TX_OVERLAP_PERCENTAGE, \
-    EXON_OVERLAPS_PERCENTAGE \
-        = cols = range(13)
+    EXON_OVERLAPS_PERCENTAGE, \
+    CDS_OVERLAPS_PERCENTAGE \
+        = cols = range(14)
 
     names = {
         CHROM: '#Chrom',
@@ -42,6 +43,7 @@ class BedCols:
         TX_OVERLAP_PERCENTAGE: 'Tx_overlap_%',
         # EXON_OVERLAPS_BASES: 'Exon_overlaps_bp',
         EXON_OVERLAPS_PERCENTAGE: 'Exon_overlaps_%',
+        CDS_OVERLAPS_PERCENTAGE: 'CDS_overlaps_%',
     }
 
 def check_genome(genome):
@@ -196,3 +198,6 @@ def get_hgnc_gene_synonyms():
 
 def high_confidence_filter(x):
     return x[BedCols.TSL] in ['1', 'NA', '.', None] and x[BedCols.HUGO] not in ['', '.', None]
+
+def protein_coding_filter(x):
+    return x[BedCols.BIOTYPE] == 'protein_coding'
