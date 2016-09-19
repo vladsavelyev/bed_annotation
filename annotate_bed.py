@@ -74,7 +74,7 @@ def main():
             dest='seq2c',
             action='store_true',
             default=False,
-            help='Equals to --canonical, --high-confidence, --cds',
+            help='Equals to --canonical, --high-confidence, --cds',  # TODO: prefer consecutive annotations
         )),
         (['--debug'], dict(
             dest='debug',
@@ -240,12 +240,13 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None, is_debug=Fals
                 header = header[:4]
             if not extended:
                 header = header[:6]
-            out.write('## ' + ga.BedCols.names[ga.BedCols.TX_OVERLAP_PERCENTAGE] +
-                      ': part of region overlapping with transcripts\n')
-            out.write('## ' + ga.BedCols.names[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] +
-                      ': part of region overlapping with exons\n')
-            out.write('## ' + ga.BedCols.names[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] +
-                      ': part of region overlapping with protein coding regions\n')
+            if extended:
+                out.write('## ' + ga.BedCols.names[ga.BedCols.TX_OVERLAP_PERCENTAGE] +
+                          ': part of region overlapping with transcripts\n')
+                out.write('## ' + ga.BedCols.names[ga.BedCols.EXON_OVERLAPS_PERCENTAGE] +
+                          ': part of region overlapping with exons\n')
+                out.write('## ' + ga.BedCols.names[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] +
+                          ': part of region overlapping with protein coding regions\n')
             out.write('\t'.join(header) + '\n')
             for fields in annotated:
                 if short:
@@ -320,8 +321,9 @@ def _format_field(value):
 def tx_sort_key(x):
     tsl_key = {'1': 0, '2': 2, '3': 3, '4': 4, '5': 5}.get(x[ga.BedCols.TSL], 1)
     hugo_key = 0 if x[ga.BedCols.HUGO] not in ['.', '', None] else 1
+    overlap_key = -x[ga.BedCols.TX_OVERLAP_PERCENTAGE]
     length_key = -(int(x[ga.BedCols.END]) - int(x[ga.BedCols.START]))
-    return tsl_key, hugo_key, length_key
+    return tsl_key, hugo_key, overlap_key, length_key
 
 
 # def select_best_tx(overlaps_by_tx):
@@ -337,7 +339,7 @@ def tx_sort_key(x):
 #     return tx_id
 
 
-def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_exons=True,
+def _resolve_ambiguities(overlaps_by_tx_by_gene_by_loc, chrom_order, collapse_exons=True,
                          high_confidence=False, output_features=False, for_seq2c=False):
     # sort transcripts by "quality" and then select which tx id to report in case of several overlaps
     # (will be useful further when interating exons)
@@ -349,7 +351,7 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
     # ])
 
     annotated = []
-    for (chrom, start, end), overlaps_by_tx_by_gene in annotated_by_tx_by_gene_by_loc.iteritems():
+    for (chrom, start, end), overlaps_by_tx_by_gene in overlaps_by_tx_by_gene_by_loc.iteritems():
         features = dict()
         annotation_alternatives = []
         for gname, overlaps_by_tx in overlaps_by_tx_by_gene.iteritems():
@@ -377,11 +379,20 @@ def _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chrom_order, collapse_e
             #     confident_overlaps = (x for xx in overlaps_by_tx.itervalues() for x, _ in xx)
 
             # Choosing confident transcript overlaps
-            all_tx = (x for xx in overlaps_by_tx.itervalues() for x, overlap_bp in xx
-                       if x[ga.BedCols.FEATURE] == 'transcript' and
-                       (not high_confidence or (100.0 * overlap_bp / (int(end) - int(start))) >= 50.0))
+            # not high_confidence or (100.0 * overlap_bp / (int(end) - int(start))) >= 50.0
+
+            all_tx = []
+            for xx in overlaps_by_tx.itervalues():
+                for x, overlap_bp in xx:
+                    if x[ga.BedCols.FEATURE] == 'transcript':
+                        x[ga.BedCols.TX_OVERLAP_PERCENTAGE] = 100.0 * overlap_bp / (int(end) - int(start))
+                        all_tx.append(x)
+            # all_tx = (x for xx in overlaps_by_tx.itervalues() for x, overlap_bp in xx
+            #           if x[ga.BedCols.FEATURE] == 'transcript')
+
             tx_sorted_list = [x[ga.BedCols.ENSEMBL_ID] for x in sorted(all_tx, key=tx_sort_key)]
             if not tx_sorted_list:
+                annotated.append(consensus)
                 continue
             tx_id = tx_sorted_list[0]
             overlaps = overlaps_by_tx[tx_id]
@@ -479,57 +490,59 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
 
     met = set()
 
-    annotated_by_tx_by_gene_by_loc = OrderedDefaultDict(lambda: OrderedDefaultDict(lambda: defaultdict(list)))
+    overlaps_by_tx_by_gene_by_loc = OrderedDefaultDict(lambda: OrderedDefaultDict(lambda: defaultdict(list)))
     # off_targets = list()
 
-    for inters_fields in intersection_bed:
-        inters_list = list(inters_fields)
+    for intersection_fields in intersection_bed:
+        inters_list = list(intersection_fields)
         if len(inters_list) < 3 + len(ga.BedCols.cols) - 3 + 1:
             critical('Cannot parse the reference BED file - unexpected number of lines '
                      '(' + str(len(inters_list)) + ') in ' + str(inters_list) +
                      ' (less than ' + str(3 + len(ga.BedCols.cols) - 2 + 1) + ')')
 
-        a_chr, a_start, a_end = inters_fields[:3]
+        a_chr, a_start, a_end = intersection_fields[:3]
+
+        overlap_fields = [None for _ in ga.BedCols.cols]
 
         if keep_gene_column:
-            a_gene = inters_fields[3]
-            feature_fields = inters_fields[4:]
+            a_gene = intersection_fields[3]
+            overlap_fields[:len(intersection_fields[4:])] = intersection_fields[4:]
         else:
             a_gene = None
-            feature_fields = inters_fields[3:]
+            overlap_fields[:len(intersection_fields[3:])] = intersection_fields[3:]
 
-        e_chr = feature_fields[0]
-        overlap_size = int(inters_fields[-1])
+        e_chr = overlap_fields[0]
+        overlap_size = int(intersection_fields[-1])
         assert e_chr == '.' or a_chr == e_chr, str((a_chr + ', ' + e_chr))
 
-        fs = [None for _ in ga.BedCols.cols]
-        fs[:3] = [a_chr, a_start, a_end]
+        # fs = [None for _ in ga.BedCols.cols]
+        # fs[:3] = [a_chr, a_start, a_end]
         reg = (a_chr, int(a_start), int(a_end))
 
         if e_chr == '.':
             total_off_target += 1
             # off_targets.append(fs)
-            annotated_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
+            overlaps_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
 
         else:
-            fs[len(feature_fields[3:-1])] = feature_fields[3:-1]
+            # fs[3:-1] = db_feature_fields[3:-1]
             total_annotated += 1
             if (a_chr, a_start, a_end) not in met:
                 total_uniq_annotated += 1
                 met.add((a_chr, a_start, a_end))
 
-            e_gene = feature_fields[ga.BedCols.GENE] if not high_confidence else feature_fields[ga.BedCols.HUGO]
+            e_gene = overlap_fields[ga.BedCols.GENE] if not high_confidence else overlap_fields[ga.BedCols.HUGO]
             if keep_gene_column and e_gene != a_gene:
-                annotated_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
+                overlaps_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
             else:
-                tx = feature_fields[ga.BedCols.ENSEMBL_ID]
-                annotated_by_tx_by_gene_by_loc[reg][e_gene][tx].append((feature_fields[:-1], overlap_size))
+                tx = overlap_fields[ga.BedCols.ENSEMBL_ID]
+                overlaps_by_tx_by_gene_by_loc[reg][e_gene][tx].append((overlap_fields[:-1], overlap_size))
 
     info('  Total annotated regions: ' + str(total_annotated))
     info('  Total unique annotated regions: ' + str(total_uniq_annotated))
     info('  Total off target regions: ' + str(total_off_target))
     info('Resolving ambiguities...')
-    annotated = _resolve_ambiguities(annotated_by_tx_by_gene_by_loc, chr_order, collapse_exons,
+    annotated = _resolve_ambiguities(overlaps_by_tx_by_gene_by_loc, chr_order, collapse_exons,
                                      high_confidence, output_features, for_seq2c)
 
     return annotated
