@@ -57,7 +57,7 @@ def check_genome(genome):
 def get_all_features(genome, high_confidence=False):
     bed = _get_ensembl_file('ensembl.bed', genome)
     if high_confidence:
-        bed = bed.filter(high_confidence_filter)
+        bed = bed.filter(lambda x: x[BedCols.HUGO] not in ['', '.', None])
     return bed
 
 def get_merged_cds(genome):
@@ -197,7 +197,7 @@ def get_hgnc_gene_synonyms():
     return _get('HGNC_gene_synonyms.txt')
 
 def high_confidence_filter(x):
-    return x[BedCols.TSL] in ['1', 'NA', '.', None] and x[BedCols.HUGO] not in ['', '.', None]
+    return x[BedCols.TSL] in ['1', '2', 'NA', '.', None] and x[BedCols.HUGO] not in ['', '.', None]
 
 def protein_coding_filter(x):
     return x[BedCols.BIOTYPE] == 'protein_coding'

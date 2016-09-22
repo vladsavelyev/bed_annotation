@@ -108,7 +108,7 @@ def main():
         opts.extended = True
         opts.short = False
     if opts.seq2c:
-        opts.high_confidence = opts.only_canonical = opts.cds_only = True
+        opts.only_canonical = True  #opts.cds_only = True
         opts.output_features = False
 
     if len(args) < 1:
@@ -319,11 +319,17 @@ def _format_field(value):
 
 
 def tx_sort_key(x):
+    biotype_key = 1
+    biotype_rank = ['protein_coding', '__default__', 'rna', 'decay', 'sense_', 'antisense', 'translated_', 'transcribed_']
+    for key in biotype_rank:
+        if key in x[ga.BedCols.BIOTYPE].lower():
+            biotype_key = biotype_rank.index(key)
     tsl_key = {'1': 0, '2': 2, '3': 3, '4': 4, '5': 5}.get(x[ga.BedCols.TSL], 1)
     hugo_key = 0 if x[ga.BedCols.HUGO] not in ['.', '', None] else 1
-    overlap_key = -x[ga.BedCols.TX_OVERLAP_PERCENTAGE]
+    overlap_key = [(-x[key] if x[key] is not None else 0)
+                   for key in ga.BedCols.CDS_OVERLAPS_PERCENTAGE, ga.BedCols.EXON_OVERLAPS_PERCENTAGE, ga.BedCols.TX_OVERLAP_PERCENTAGE]
     length_key = -(int(x[ga.BedCols.END]) - int(x[ga.BedCols.START]))
-    return tsl_key, hugo_key, overlap_key, length_key
+    return biotype_key, tsl_key, hugo_key, overlap_key, length_key
 
 
 # def select_best_tx(overlaps_by_tx):
@@ -365,7 +371,7 @@ def _resolve_ambiguities(overlaps_by_tx_by_gene_by_loc, chrom_order, collapse_ex
             consensus[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] = 0
             consensus[ga.BedCols.EXON] = set()
 
-            if start == 11189801:
+            if start == 47205282:
                 pass
 
             if not overlaps_by_tx:  # not annotated or already annotated but gene did not match the intersection
@@ -446,8 +452,12 @@ def _resolve_ambiguities(overlaps_by_tx_by_gene_by_loc, chrom_order, collapse_ex
             # annotated.append(consensus)
             annotation_alternatives.append(consensus)
 
-        if for_seq2c and len(annotation_alternatives) > 1:
-            annotation_alternatives = [a for a in annotation_alternatives if a[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] > 0]
+        # TODO: sort annotation_alternatives by score, select best
+        if annotation_alternatives and for_seq2c:
+            annotation_alternatives.sort(key=tx_sort_key)
+            # annotation_alternatives = [a for a in annotation_alternatives if a[ga.BedCols.CDS_OVERLAPS_PERCENTAGE] > 50]
+            best_alt = annotation_alternatives[0]
+            annotation_alternatives = [a for a in annotation_alternatives if tx_sort_key(a) == tx_sort_key(best_alt)]
 
         annotated.extend(annotation_alternatives)
 
@@ -536,7 +546,7 @@ def _annotate(bed, ref_bed, chr_order, work_dir, fai_fpath=None, high_confidence
                 overlaps_by_tx_by_gene_by_loc[reg][a_gene] = OrderedDefaultDict(list)
             else:
                 tx = overlap_fields[ga.BedCols.ENSEMBL_ID]
-                overlaps_by_tx_by_gene_by_loc[reg][e_gene][tx].append((overlap_fields[:-1], overlap_size))
+                overlaps_by_tx_by_gene_by_loc[reg][e_gene][tx].append((overlap_fields, overlap_size))
 
     info('  Total annotated regions: ' + str(total_annotated))
     info('  Total unique annotated regions: ' + str(total_uniq_annotated))
