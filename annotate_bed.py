@@ -12,8 +12,8 @@ from Utils.bedtools import BedTool
 from Utils import reference_data
 from Utils.logger import debug
 from Utils.utils import OrderedDefaultDict
-from Utils.bed_utils import verify_bed, SortableByChrom, count_bed_cols, sort_bed
-from Utils.file_utils import file_transaction, adjust_path, safe_mkdir
+from Utils.bed_utils import verify_bed, SortableByChrom, count_bed_cols, sort_bed, clean_bed
+from Utils.file_utils import file_transaction, adjust_path, safe_mkdir, verify_file
 from Utils.logger import critical, info
 from Utils import logger
 
@@ -113,8 +113,7 @@ def main():
 
     if len(args) < 1:
         parser.exit('Usage: ' + __file__ + ' Input_BED_file -g hg19 -o Annotated_BED_file [--canonical]')
-    input_bed_fpath = verify_bed(args[0], is_critical=True, description='Input BED file for ' + __file__)
-
+    input_bed_fpath = verify_file(args[0], is_critical=True, description='Input BED file for ' + __file__)
     output_fpath = adjust_path(opts.output_file)
 
     # prev_output_fpath = None
@@ -129,6 +128,9 @@ def main():
     else:
         work_dir = mkdtemp('bed_annotate')
         debug('Created temporary work directory ' + work_dir)
+
+    input_bed_fpath = clean_bed(input_bed_fpath, work_dir)
+    input_bed_fpath = verify_bed(input_bed_fpath, is_critical=True, description='Input BED file for ' + __file__)
 
     output_fpath = annotate(
         input_bed_fpath, output_fpath, work_dir, genome=opts.genome, is_debug=opts.debug,
