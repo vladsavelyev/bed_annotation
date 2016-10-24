@@ -328,8 +328,14 @@ def tx_sort_key(x):
             biotype_key = biotype_rank.index(key)
     tsl_key = {'1': 0, '2': 2, '3': 3, '4': 4, '5': 5}.get(x[ga.BedCols.TSL], 1)
     hugo_key = 0 if x[ga.BedCols.HUGO] not in ['.', '', None] else 1
-    overlap_key = [(-x[key] if x[key] is not None else 0)
-                   for key in ga.BedCols.CDS_OVERLAPS_PERCENTAGE, ga.BedCols.EXON_OVERLAPS_PERCENTAGE, ga.BedCols.TX_OVERLAP_PERCENTAGE]
+
+    overlap_key = 0
+    if len(x.fields) > ga.BedCols.TX_OVERLAP_PERCENTAGE:
+        overlap_key = [(-x[key] if x[key] is not None else 0)
+                       for key in [ga.BedCols.TX_OVERLAP_PERCENTAGE,
+                                   ga.BedCols.CDS_OVERLAPS_PERCENTAGE,
+                                   ga.BedCols.EXON_OVERLAPS_PERCENTAGE]]
+
     length_key = -(int(x[ga.BedCols.END]) - int(x[ga.BedCols.START]))
     return biotype_key, tsl_key, hugo_key, overlap_key, length_key
 
