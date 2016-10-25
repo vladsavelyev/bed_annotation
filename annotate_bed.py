@@ -330,7 +330,7 @@ def tx_sort_key(x):
     hugo_key = 0 if x[ga.BedCols.HUGO] not in ['.', '', None] else 1
 
     overlap_key = 0
-    if len(x.fields) > ga.BedCols.TX_OVERLAP_PERCENTAGE:
+    if len(x) > ga.BedCols.TX_OVERLAP_PERCENTAGE:
         overlap_key = [(-x[key] if x[key] is not None else 0)
                        for key in [ga.BedCols.TX_OVERLAP_PERCENTAGE,
                                    ga.BedCols.CDS_OVERLAPS_PERCENTAGE,
