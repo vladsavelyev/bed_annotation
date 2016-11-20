@@ -8,14 +8,14 @@ import shutil
 
 import GeneAnnotation as ga
 
-from Utils.bedtools import BedTool
-from Utils import reference_data
-from Utils.logger import debug
-from Utils.utils import OrderedDefaultDict
-from Utils.bed_utils import verify_bed, SortableByChrom, count_bed_cols, sort_bed, clean_bed
-from Utils.file_utils import file_transaction, adjust_path, safe_mkdir, verify_file
-from Utils.logger import critical, info
-from Utils import logger
+from ngs_utils.bedtools import BedTool
+from ngs_utils import reference_data
+from ngs_utils.logger import debug
+from ngs_utils.utils import OrderedDefaultDict
+from ngs_utils.bed_utils import verify_bed, SortableByChrom, count_bed_cols, sort_bed, clean_bed
+from ngs_utils.file_utils import file_transaction, adjust_path, safe_mkdir, verify_file
+from ngs_utils.logger import critical, info
+from ngs_utils import logger
 
 
 def main():

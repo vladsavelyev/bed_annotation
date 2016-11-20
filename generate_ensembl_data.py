@@ -6,12 +6,12 @@ from optparse import OptionParser
 from os.path import join, dirname, splitext, isfile, isdir
 
 import GeneAnnotation as ga
-from Utils.bed_utils import bgzip_and_tabix, SortableByChrom, sort_bed
-from Utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
-from Utils.logger import err, info, critical, debug, warn
-import Utils.reference_data as ref
-from Utils import gtf
-from Utils import logger
+from ngs_utils.bed_utils import bgzip_and_tabix, SortableByChrom, sort_bed
+from ngs_utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
+from ngs_utils.logger import err, info, critical, debug, warn
+import ngs_utils.reference_data as ref
+from ngs_utils import gtf
+from ngs_utils import logger
 
 
 def main():

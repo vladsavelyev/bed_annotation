@@ -1,11 +1,11 @@
 import os
 from os.path import dirname, join, abspath, isfile, basename, splitext
 import sys
-from Utils.bedtools import BedTool
 
-from Utils.bed_utils import bedtools_version
-from Utils.file_utils import which, open_gzipsafe
-from Utils.logger import debug, critical
+from ngs_utils.bedtools import BedTool
+from ngs_utils.bed_utils import bedtools_version
+from ngs_utils.file_utils import which, open_gzipsafe
+from ngs_utils.logger import debug, critical
 
 
 SUPPORTED_GENOMES = ['hg19', 'hg19-noalt', 'hg38', 'hg38-noalt', 'mm10']

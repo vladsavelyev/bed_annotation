@@ -7,10 +7,10 @@ from os.path import join, dirname
 from traceback import format_exc
 
 import GeneAnnotation as ga
-from Utils.bed_utils import bgzip_and_tabix, SortableByChrom
-from Utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
-from Utils.logger import err, info, critical, debug
-import Utils.reference_data as ref
+from ngs_utils.bed_utils import bgzip_and_tabix, SortableByChrom
+from ngs_utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
+from ngs_utils.logger import err, info, critical, debug
+import ngs_utils.reference_data as ref
 
 
 ALL_EXONS = True
