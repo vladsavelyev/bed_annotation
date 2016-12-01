@@ -74,7 +74,7 @@ def main():
             dest='seq2c',
             action='store_true',
             default=False,
-            help='Equals to --canonical, --high-confidence, --cds',  # TODO: prefer consecutive annotations
+            help='Equals to --canonical',  # TODO: prefer consecutive annotations
         )),
         (['--debug'], dict(
             dest='debug',
