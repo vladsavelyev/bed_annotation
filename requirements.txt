@@ -7,9 +7,5 @@ cython
 numpy
 joblib
 gffutils
-beautifulsoup4
-lxml
-xlsxwriter>=0.5.5
-natsort
 click
 ngs_utils

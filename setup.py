@@ -10,11 +10,13 @@ name = 'bed_annotation'
 script_name = 'bed_annotation'
 package_name = 'bed_annotation'
 
-from setuptools import setup, find_packages
-
 with open('VERSION.txt') as f:
     version = f.read().strip().split('\n')[0]
 
+with open('requirements.txt') as f:
+    reqs = f.read().strip().split('\n')
+
+from setuptools import setup, find_packages
 setup(
     name=name,
     version=version,
@@ -44,7 +46,7 @@ setup(
     scripts=[
         join('scripts', script_name),
     ],
-    install_requires=[],
+    install_requires=reqs,
     setup_requires=[],
     classifiers=[
         'Environment :: Console',

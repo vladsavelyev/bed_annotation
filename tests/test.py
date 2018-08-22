@@ -1,15 +1,11 @@
 import os
-from collections import namedtuple
-from datetime import datetime
-from genericpath import getmtime
-from nose import SkipTest
 from os.path import dirname, join, exists, isfile, splitext, basename, isdir, relpath
 from ngs_utils.testing import BaseTestCase, swap_output, check_call
 from ngs_utils.file_utils import add_suffix
 
 
 class AnnotateBedTests(BaseTestCase):
-    script = 'annotate_bed.py'
+    script = 'bed_annotation'
 
     data_dir = join(dirname(__file__), BaseTestCase.data_dir)
     results_dir = join(dirname(__file__), BaseTestCase.results_dir)
@@ -48,10 +44,10 @@ class AnnotateBedTests(BaseTestCase):
     def test_mm10(self):
         self._test('mm10', 'mm10', '--extended')
 
-    def _test(self, name, genome, opts=None):
+    def _test(self, name, genome, opts=''):
         os.chdir(self.results_dir)
         input_fname = genome + '.bed'
-        output_fname = add_suffix(input_fname, 'anno')
+        output_fname = add_suffix(input_fname, f'anno_{name}')
         input_fpath = join(self.data_dir, input_fname)
         output_fpath = join(self.results_dir, output_fname)
 
@@ -60,9 +56,9 @@ class AnnotateBedTests(BaseTestCase):
         swap_output(output_fpath)
 
         print('-' * 100)
-        check_call(cmdl, shell=True)
+        check_call(cmdl)
         print('-' * 100)
         print('')
 
-        self._check_file(output_fpath)
+        self._check_file_throws(output_fpath)
 
