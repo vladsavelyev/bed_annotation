@@ -180,8 +180,8 @@ def get_canonical_transcripts_ids(genome):
     canon_fpath = _get_ensembl_file('canon_transcripts_{genome}_ensembl.txt', genome)
     replacement_fpath = _get_ensembl_file('canon_cancer_replacement.txt')
 
-    canon_fpath = verify_file(canon_fpath, description='Canonical transcripts path')
-    replacement_fpath = verify_file(replacement_fpath, description='Canonical cancer transcripts replacement path')
+    canon_fpath = verify_file(canon_fpath, is_critical=True, description='Canonical transcripts path')
+    replacement_fpath = verify_file(replacement_fpath, is_critical=True, description='Canonical cancer transcripts replacement path')
 
     if not canon_fpath:
         return None

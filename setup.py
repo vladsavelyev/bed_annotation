@@ -38,7 +38,7 @@ setup(
             'ensembl/hg38/canon_transcripts_hg38_ensembl.txt',
             'ensembl/mm10/ensembl.bed.gz',
             'ensembl/mm10/ensembl.bed.gz.tbi',
-            'canon_cancer_replacement.txt',
+            'ensembl/canon_cancer_replacement.txt',
         ]
     },
     include_package_data=True,
