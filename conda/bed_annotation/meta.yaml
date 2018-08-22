@@ -1,0 +1,43 @@
+{% set version=load_setup_py_data().get('version') %}
+
+package:
+  name: bed_annotation
+  version: "{{ version }}"
+
+source:
+  git_url: https://github.com/vladsaveliev/bed_annotation
+  git_rev: master
+
+build:
+  number: 0
+
+test:
+  imports:
+   - bed_annotation
+
+  commands:
+   - bed_annotation --help
+
+about:
+  home: https://github.com/vladsaveliev/bed_annotation
+  license: GNU General Public License v3 (GPLv3)
+  summary: 'Assign gene names to regions in a BED file'
+  license_family: GPL3
+
+requirements:
+  build:
+    - python ==3.6
+    - numpy
+    - ngs_utils
+  run:
+    - python ==3.6
+    - bedtools >=2.25
+    - pybedtools
+    - cython
+    - numpy
+    - joblib
+    - gffutils
+    - click
+    - nose
+    - ngs_utils
+    - natsort
