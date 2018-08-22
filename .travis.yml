@@ -5,7 +5,8 @@ python:
   # We don't actually use the Travis Python (since we are on conda), but this keeps it organized.
   - "3.6"
 
-install:
+before_install:
+  - export PACKAGENAME=bed_annotation
   # Get and install anaconda (https://conda.io/docs/travis.html)
   - wget -nv https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
@@ -13,22 +14,25 @@ install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
-  - conda create -n test_env -c vladsaveliev -c bioconda -c conda-forge bed_annotation
-  # Install conda packages
-  - source activate test_env
   - conda info -a  # Useful for debugging any issues with conda
-  # Installing
-  - python setup.py install --single-version-externally-managed --record=record.txt
+  - conda config --set always_yes true
+  - conda config --set anaconda_upload no
+
+install:
+  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION anaconda
+  - source activate test-env
+  # Building package
+  - conda build conda/${PACKAGENAME}
+  - conda install ${PACKAGENAME} --use-local
 
 script:
   - nosetests --nocapture tests/test.py
 
-#after_success:
-#  # building and uploading conda package
-#  - conda install -y anaconda
-#  - bash conda/build_all.sh bed_annotation $CONDA_UPLOAD_TOKEN
+deploy:
+  # Deploy to Anaconda.org
+  - provider: script
+    script: ./conda/deploy_anaconda.sh
+    on:
+      tags: true
+    skip_cleanup: true
 
-#notifications:
-#  on_success: always
-#  email: false
-#  slack: astrazeneca-ngs:cP6TAiGMYU857H0Vahc42SHD
