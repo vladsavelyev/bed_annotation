@@ -19,11 +19,10 @@ before_install:
   - conda config --set anaconda_upload no
 
 install:
-  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION pip requests conda-build jinja2 anaconda-client
-  - source activate test-env
+  - conda install -q python=$TRAVIS_PYTHON_VERSION pip requests conda-build jinja2 anaconda-client
   # Building package
   - conda build -c vladsaveliev -c bioconda -c conda-forge conda/${PACKAGENAME}
-  - conda install ${PACKAGENAME} --use-local
+  - conda install --use-local ${PACKAGENAME}
 
 script:
   - nosetests --nocapture tests/test.py
