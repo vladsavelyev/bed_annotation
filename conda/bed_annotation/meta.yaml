@@ -5,8 +5,7 @@ package:
   version: "{{ version }}"
 
 source:
-  git_url: https://github.com/vladsaveliev/bed_annotation
-  git_rev: master
+  path: ../../
 
 build:
   number: 0
