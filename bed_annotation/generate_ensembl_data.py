@@ -1,15 +1,15 @@
 #!/usr/bin/env python
+import bed_annotation as ebl
 import csv
-import ensembl as ebl
 import os
-import targqc.utilz.reference_data as ref
+import ngs_utils.reference_data as ref
 from optparse import OptionParser
 from os.path import join, isfile, dirname
-from targqc.utilz.bed_utils import bgzip_and_tabix, sort_bed
-from targqc.utilz import gtf
-from targqc.utilz import logger
-from targqc.utilz.file_utils import verify_file, add_suffix
-from targqc.utilz.logger import debug, warn, critical
+from ngs_utils.bed_utils import bgzip_and_tabix, sort_bed
+from ngs_utils import gtf
+from ngs_utils import logger
+from ngs_utils.file_utils import verify_file, add_suffix
+from ngs_utils.logger import debug, warn, critical
 
 
 def main():

@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 import sys
 py_v = sys.version_info[:2]
-if not (py_v == (2, 7) or py_v >= (3, 3)):
-    sys.exit('Only Python 2.7 or 3.3 and up are supported. Current version: ' + '.'.join(py_v))
+if py_v < (3, 6):
+    sys.exit('Only Python 3.6 and higher are supported. Current version: ' + '.'.join(py_v))
 
-from os.path import join, isfile, abspath, dirname
+from os.path import join
 
-name = 'targqc'
-script_name = 'targqc'
-package_name = 'targqc'
-
+name = 'bed_annotation'
+script_name = 'bed_annotation'
+package_name = 'bed_annotation'
 
 from setuptools import setup, find_packages
-from targqc.utilz import setup_utils
 
-version = setup_utils.init(package_name, package_name, __file__)
+with open('VERSION.txt') as f:
+    version = f.read().strip().split('\n')[0]
+
 setup(
     name=name,
     version=version,
@@ -23,19 +23,19 @@ setup(
     description='Genome capture target coverage evaluation tool',
     long_description=(open('README.md').read()),
     keywords='bioinformatics',
-    url='https://github.com/vladsaveliev/TargQC',
-    download_url='https://github.com/vladsaveliev/TargQC/releases',
+    url='https://github.com/vladsaveliev/bed_annotation',
     license='GPLv3',
     packages=find_packages(),
     package_data={
-        package_name: setup_utils.find_package_files('', package_name, skip_exts=['.sass', '.coffee']),
-        'ensembl': [
-            'hg19/ensembl.bed.gz',
-            'hg19/ensembl.bed.gz.tbi',
-            'hg19/canon_transcripts_hg19_ensembl.txt',
-            'hg38/ensembl.bed.gz',
-            'hg38/ensembl.bed.gz.tbi',
-            'hg38/canon_transcripts_hg38_ensembl.txt',
+        package_name: [
+            'ensembl/hg19/ensembl.bed.gz',
+            'ensembl/hg19/ensembl.bed.gz.tbi',
+            'ensembl/hg19/canon_transcripts_hg19_ensembl.txt',
+            'ensembl/hg38/ensembl.bed.gz',
+            'ensembl/hg38/ensembl.bed.gz.tbi',
+            'ensembl/hg38/canon_transcripts_hg38_ensembl.txt',
+            'ensembl/mm10/ensembl.bed.gz',
+            'ensembl/mm10/ensembl.bed.gz.tbi',
             'canon_cancer_replacement.txt',
         ]
     },
@@ -43,10 +43,9 @@ setup(
     zip_safe=False,
     scripts=[
         join('scripts', script_name),
-        join('scripts', 'annotate_bed.py'),
     ],
-    install_requires=setup_utils.get_reqs(),
-    setup_requires=['numpy'],
+    install_requires=[],
+    setup_requires=[],
     classifiers=[
         'Environment :: Console',
         'Environment :: Web Environment',

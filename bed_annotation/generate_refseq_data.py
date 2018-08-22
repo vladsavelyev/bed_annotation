@@ -6,7 +6,7 @@ from optparse import OptionParser
 from os.path import join, dirname
 from traceback import format_exc
 
-import GeneAnnotation as ga
+import bed_annotation as ba
 from ngs_utils.bed_utils import bgzip_and_tabix, SortableByChrom
 from ngs_utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
 from ngs_utils.logger import err, info, critical, debug
@@ -108,10 +108,10 @@ See more info in http://wiki.rd.astrazeneca.net/display/NG/SOP+-+Making+the+full
     if len(args) > 1:
         input_fpath = verify_file(args[1])
     else:
-        input_fpath = ga.get_refseq_gene(genome_name)
+        input_fpath = ba.get_refseq_gene(genome_name)
 
-    output_dirpath = ga.get_refseq_dirpath()
-    synonyms_fpath = ga.get_hgnc_gene_synonyms()
+    output_dirpath = ba.get_refseq_dirpath()
+    synonyms_fpath = ba.get_hgnc_gene_synonyms()
     not_approved_fpath = join(output_dirpath, 'not_approved.txt')
 
     info('Reading the features...')
@@ -166,19 +166,19 @@ See more info in http://wiki.rd.astrazeneca.net/display/NG/SOP+-+Making+the+full
 
     info()
     info('Sorting and printing all regions...')
-    all_features_fpath = ga.get_all_features(genome_name)
+    all_features_fpath = ba.get_all_features(genome_name)
     write_all_features(genes, all_features_fpath, canon_only=False)
     all_features_fpath = bgzip_and_tabix(all_features_fpath, tabix_parameters='-p bed')
 
     info()
     info('Sorting and printing canonical regions...')
-    canon_output_fpath = ga.get_all_features_canonical(genome_name, gzip=False)
+    canon_output_fpath = ba.get_all_features_canonical(genome_name, gzip=False)
     write_all_features(canon_genes, canon_output_fpath, canon_only=True)
     canon_output_fpath = bgzip_and_tabix(canon_output_fpath, tabix_parameters='-p bed')
 
     info()
     info('Sorting and printing canonical CDS...')
-    cds_output_fpath = ga.get_cds(genome_name)
+    cds_output_fpath = ba.get_cds(genome_name)
     write_all_features(canon_genes, cds_output_fpath, canon_only=True, cds_only=True)
 
     # info()

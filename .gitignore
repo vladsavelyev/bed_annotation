@@ -1,4 +1,52 @@
+*.py[cod]
+
+# C extensions
+*.so
+
+# Packages
+*.egg
+*.egg-info
+dist
+build
+eggs
+.eggs/
+parts
+bin
+#var
+sdist
+develop-eggs
+.installed.cfg
+__pycache__
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+.coverage
+.tox
+nosetests.xml
+
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+# Idea
+.idea
+
+# OS X
 .DS_Store
-*.pyc
-Ensembl/*/test_annotation
-Ensembl/*/ensembl.bed
+
+.sass-cache
+
+# virtualenv
+venv*/
+ENV/
+
+tests/results
+tests/results_devel
+
+bed_annotation/ensembl/*/gtf/*.gtf.db

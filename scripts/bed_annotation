@@ -6,8 +6,8 @@ import shutil
 from os.path import join, basename
 from tempfile import mkdtemp
 
-import ensembl as ebl
-from ensembl.bed_annotation import annotate
+import bed_annotation as ba
+from bed_annotation.bed_annotation import annotate
 from ngs_utils.bed_utils import verify_bed, clean_bed
 from ngs_utils import logger
 from ngs_utils.file_utils import adjust_path, safe_mkdir, verify_file
@@ -19,7 +19,7 @@ from ngs_utils.logger import debug
 @click.argument('input_bed', type=click.Path(exists=True))
 @click.option('-o', '--output-file', type=click.Path(), help='Output file path')
 @click.option('--output-features', is_flag=True, help='Also output featues that was used to annotate')
-@click.option('-g', 'genome', default='GRCh37', type=click.Choice(ebl.SUPPORTED_GENOMES), help='Genome build')
+@click.option('-g', 'genome', default='GRCh37', type=click.Choice(ba.SUPPORTED_GENOMES), help='Genome build')
 @click.option('--canonical', '--only-canonical', is_flag=True, help='Use only features from canonical transcripts to annotate')
 @click.option('--short', is_flag=True, help='Add only "Gene" column (outputa 4-col BED file instead of 6-col)')
 @click.option('-e', '--extended', is_flag=True, help='Output additional columns: transcript, GC, overlap size...')

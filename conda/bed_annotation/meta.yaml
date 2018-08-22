@@ -35,9 +35,7 @@ requirements:
     - pybedtools
     - cython
     - numpy
-    - joblib
     - gffutils
     - click
     - nose
     - ngs_utils
-    - natsort

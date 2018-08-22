@@ -2,8 +2,8 @@ import os
 import sys
 from os.path import dirname, join, abspath, isfile, pardir
 from pybedtools import BedTool
-from targqc.utilz.file_utils import which, open_gzipsafe, verify_file
-from targqc.utilz.logger import debug, critical
+from ngs_utils.file_utils import which, open_gzipsafe, verify_file
+from ngs_utils.logger import debug, critical
 
 SUPPORTED_GENOMES = ['GRCh37', 'hg19', 'hg19-noalt', 'hg38', 'hg38-noalt', 'mm10', 'hg19-chr21']
 
@@ -161,9 +161,9 @@ def biomart_fpath(genome='hg38'):
 
 def _get_ensembl_file(fname, genome=None):
     if genome:
-        return _get(join(genome.split('-')[0], fname), genome)
+        return _get(join('ensembl', genome.split('-')[0], fname), genome)
     else:
-        return _get(join(fname))
+        return _get(join('ensembl', fname))
 
 
 ###################
@@ -177,7 +177,7 @@ def get_canonical_transcripts_ids(genome):
         short_genome = 'hg38'
     check_genome(short_genome)
 
-    canon_fpath = _get(join('{genome}', 'canon_transcripts_{genome}_ensembl.txt'), genome)
+    canon_fpath = _get(join('ensembl', '{genome}', 'canon_transcripts_{genome}_ensembl.txt'), genome)
     replacement_fpath = _get('canon_cancer_replacement.txt')
 
     canon_fpath = verify_file(canon_fpath, description='Canonical transcripts path')

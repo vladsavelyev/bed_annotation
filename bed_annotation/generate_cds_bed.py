@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
-import ensembl as ebl
+import bed_annotation as ebl
 import os
 import shutil
 from optparse import OptionParser, SUPPRESS_HELP
 from os.path import isfile, join, basename, dirname, pardir
-from targqc.utilz import logger
-from targqc.utilz.logger import critical, info
-from targqc.utilz.logger import debug
-from targqc.utilz.file_utils import file_transaction, adjust_path, safe_mkdir, verify_file
+from ngs_utils import logger
+from ngs_utils.logger import critical, info
+from ngs_utils.logger import debug
+from ngs_utils.file_utils import file_transaction, adjust_path, safe_mkdir, verify_file
 
 
 def main():
