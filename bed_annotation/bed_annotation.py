@@ -216,8 +216,9 @@ def tx_priority_sort_key(x):
     overlap_key = tuple([(-x[ind] if len(x) > ind and x[ind] is not None else 0)
                          for ind in [ba.BedCols.TX_OVERLAP_PERCENTAGE,
                                      ba.BedCols.CDS_OVERLAPS_PERCENTAGE,
-                                     ba.BedCols.EXON_OVERLAPS_PERCENTAGE]])
-    
+                                     ba.BedCols.EXON_OVERLAPS_PERCENTAGE]] +
+                        [x[ba.BedCols.ENSEMBL_ID]])
+
     biotype_rank = ['protein_coding', 'rna', 'decay', 'sense_', 'antisense', '__default__', 'translated_', 'transcribed_']
     biotype = '__default__'
     for bt in biotype_rank:
