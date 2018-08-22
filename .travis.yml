@@ -22,7 +22,7 @@ install:
   - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION pip requests conda-build jinja2 anaconda-client
   - source activate test-env
   # Building package
-  - conda build conda/${PACKAGENAME}
+  - conda build -c vladsaveliev -c bioconda -c conda-forge conda/${PACKAGENAME}
   - conda install ${PACKAGENAME} --use-local
 
 script:
