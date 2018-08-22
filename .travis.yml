@@ -22,7 +22,7 @@ install:
   - conda install -q python=$TRAVIS_PYTHON_VERSION pip requests conda-build jinja2 anaconda-client
   # Building package
   - conda build -c vladsaveliev -c bioconda -c conda-forge conda/${PACKAGENAME}
-  - conda install --use-local ${PACKAGENAME}
+  - conda install -c vladsaveliev -c bioconda -c conda-forge --use-local ${PACKAGENAME}
 
 script:
   - nosetests --nocapture tests/test.py
