@@ -3,9 +3,7 @@
 import bed_annotation as ba
 import os
 import pybedtools
-import tempfile
 from collections import defaultdict, OrderedDict
-from contextlib import contextmanager
 from os.path import isfile, join, basename
 from pybedtools import BedTool
 from ngs_utils.bed_utils import verify_bed, SortableByChrom, count_bed_cols, sort_bed, clean_bed
@@ -72,18 +70,7 @@ def annotate(input_bed_fpath, output_fpath, work_dir, genome=None,
     reannotate = reannotate or ori_col_num == 3
     pybedtools.set_tempdir(safe_mkdir(join(work_dir, 'bedtools')))
     ori_bed = BedTool(input_bed_fpath)
-        # if reannotate:
-        #     bed = BedTool(input_bed_fpath).cut([0, 1, 2])
-        #     keep_gene_column = False
-        # else:
-        #     if col_num > 4:
-        #         bed = BedTool(input_bed_fpath).cut([0, 1, 2, 3])
-        #     keep_gene_column = True
 
-    # features_bed = features_bed.saveas()
-    # cols = features_bed.field_count()
-    # if cols < 12:
-    #     features_bed = features_bed.each(lambda f: f + ['.']*(12-cols))
     if high_confidence:
         features_bed = features_bed.filter(ba.high_confidence_filter)
     if only_canonical:
@@ -369,18 +356,6 @@ def _resolve_ambiguities(overlaps_by_tx_by_gene_by_loc, chrom_order,
         if output_features:
             annotated.extend(features)
     return annotated
-
-
-@contextmanager
-def bedtools_tmpdir(work_dir):
-    with tx_tmpdir(work_dir) as tmpdir:
-        orig_tmpdir = tempfile.gettempdir()
-        pybedtools.set_tempdir(tmpdir)
-        yield
-        if orig_tmpdir and os.path.exists(orig_tmpdir):
-            pybedtools.set_tempdir(orig_tmpdir)
-        else:
-            tempfile.tempdir = None
 
 
 def _annotate(bed, ref_bed, chr_order, fai_fpath, work_dir, ori_col_num,
