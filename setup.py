@@ -45,6 +45,7 @@ setup(
     zip_safe=False,
     scripts=[
         join('scripts', script_name),
+        join('scripts', 'extract_features'),
     ],
     install_requires=reqs,
     setup_requires=[],

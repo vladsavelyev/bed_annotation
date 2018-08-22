@@ -47,6 +47,33 @@ def overlap_with_features(input_bed_fpath, output_fpath, work_dir, genome=None, 
 canon_tx_by_gname = dict()
 
 
+def extract_features(output_file, genome, only_canonical, high_confidence, coding_only,
+                     feature_types):
+    """ For debug purposes
+    """
+    debug('Getting features from storage')
+    features_bed = ba.get_all_features(genome)
+    if features_bed is None:
+        critical('Genome ' + genome + ' is not supported. Supported: ' + ', '.join(ba.SUPPORTED_GENOMES))
+
+    if high_confidence:
+        features_bed = features_bed.filter(ba.high_confidence_filter)
+    if only_canonical:
+        features_bed = features_bed.filter(ba.get_only_canonical_filter(genome))
+    if coding_only:
+        features_bed = features_bed.filter(ba.protein_coding_filter)
+    # unique_tx_by_gene = find_best_tx_by_gene(features_bed)
+
+    info('Extracting features from Ensembl GTF')
+    feature_types = feature_types or ['exon', 'CDS', 'stop_codon', 'transcript']
+    features_bed = features_bed.filter(lambda x: x[ba.BedCols.FEATURE] in feature_types)
+        # x[ebl.BedCols.ENSEMBL_ID] == unique_tx_by_gene[x[ebl.BedCols.GENE]])
+
+    info('Overlapping regions with Ensembl data')
+    features_bed.saveas(output_file)
+    debug(f'Saved features to {output_file}')
+
+
 def annotate(input_bed_fpath, output_fpath, work_dir, genome=None,
              reannotate=True, high_confidence=False, only_canonical=False,
              coding_only=False, short=False, extended=False, is_debug=False, **kwargs):
@@ -203,8 +230,7 @@ def tx_priority_sort_key(x):
     overlap_key = tuple([(-x[ind] if len(x) > ind and x[ind] is not None else 0)
                          for ind in [ba.BedCols.TX_OVERLAP_PERCENTAGE,
                                      ba.BedCols.CDS_OVERLAPS_PERCENTAGE,
-                                     ba.BedCols.EXON_OVERLAPS_PERCENTAGE]] +
-                        [x[ba.BedCols.ENSEMBL_ID]])
+                                     ba.BedCols.EXON_OVERLAPS_PERCENTAGE]])
 
     biotype_rank = ['protein_coding', 'rna', 'decay', 'sense_', 'antisense', '__default__', 'translated_', 'transcribed_']
     biotype = '__default__'
@@ -224,7 +250,7 @@ def tx_priority_sort_key(x):
     
     length_key = -(int(x[ba.BedCols.END]) - int(x[ba.BedCols.START]))
 
-    return overlap_key, biotype_key, tsl_key, hugo_key, canon_tx_key, length_key
+    return overlap_key, biotype_key, tsl_key, hugo_key, canon_tx_key, length_key, x[ba.BedCols.ENSEMBL_ID]
 
 
 # def select_best_tx(overlaps_by_tx):

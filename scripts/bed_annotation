@@ -26,13 +26,14 @@ from ngs_utils.logger import debug
 @click.option('--high-confidence', is_flag=True, help='Annotate with only high confidence regions (TSL is 1 or NA, with HUGO symbol, total overlap size > 50%)')
 @click.option('-a', '--ambiguities', '--ambiguities-method', type=click.Choice(['best_one', 'best_ask', 'best_all', 'all_ask', 'all']), default='best_all',
               help='How to resolve ambuguios overlaps with reliable transcripts for a single region')
-@click.option('--coding-only', is_flag=True, help='Use only protein coding genes to annotate')
+@click.option('--coding', '--coding-only', is_flag=True, help='Use only protein coding genes to annotate')
 @click.option('--collapse-exons', is_flag=True)
 @click.option('--work-dir', default=None, type=click.Path())
 @click.option('-d', '--debug', '--is-debug', is_flag=True)
 def main(input_bed, output_file, output_features=False, genome=None,
          only_canonical=False, short=False, extended=False, high_confidence=False,
-         ambiguities_method=False, coding_only=False, collapse_exons=False, work_dir=False, is_debug=False):
+         ambiguities_method=False, coding_only=False, collapse_exons=False,
+         work_dir=False, is_debug=False):
     """ Annotating BED file based on reference features annotations.
     """
     logger.init(is_debug_=is_debug)
@@ -81,7 +82,6 @@ def main(input_bed, output_file, output_features=False, genome=None,
 
 if __name__ == '__main__':
     main()
-
 
 
 # TODO: prefer consecutive annotations
