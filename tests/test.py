@@ -14,29 +14,23 @@ class AnnotateBedTests(BaseTestCase):
     def test_hg19(self):
         self._test('hg19', 'hg19')
 
-    def test_hg38(self):
-        self._test('hg38', 'hg38')
+    def test_grch37_ext(self):
+        self._test('grch37_ext', 'GRCh37', '--extended')
 
-    def test_grch37(self):
-        self._test('GRCh37', 'GRCh37')
+    def test_hg38_features_ext(self):
+        self._test('hg38_features_ext', 'hg38', '--output-features --extended')
 
-    def test_hg38_ext(self):
-        self._test('hg38_ext', 'hg38', '--extended')
+    def test_many_options(self):
+        self._test('many_opts', 'hg38', '--extended --output-features --high-confidence --canonical --coding-only')
 
-    def test_hg38_extended_features(self):
-        self._test('hg38_ext_features', 'hg38', '--extended --output-features')
+    def test_amb_best_one(self):
+        self._test('amb_best_one', 'GRCh37', '--ambiguities best_one')
 
-    def test_hg38_many_options(self):
-        self._test('hg38_ext_features_high_conf', 'hg38', '--extended --output-features --high-confidence --canonical --coding-only')
+    def test_amb_best_all(self):
+        self._test('amb_best_all', 'GRCh37', '--ambiguities best_all')
 
-    def test_hg38_ambiguities_best_one(self):
-        self._test('hg38_short', 'GRCh37', '--ambiguities best_one')
-
-    def test_hg38_ambiguities_best_all(self):
-        self._test('hg38_short', 'GRCh37', '--ambiguities best_all')
-
-    def test_hg38_ambiguities_all(self):
-        self._test('hg38_short', 'GRCh37', '--ambiguities all')
+    def test_amb_all(self):
+        self._test('amb_all', 'GRCh37', '--ambiguities all')
 
     def test_hg38_short(self):
         self._test('hg38_short', 'hg38', '--short')
@@ -52,13 +46,6 @@ class AnnotateBedTests(BaseTestCase):
         output_fpath = join(self.results_dir, output_fname)
 
         cmdl = f'{self.script} {input_fpath} -o {output_fpath} {opts} -g {genome}'
-
-        swap_output(output_fpath)
-
-        print('-' * 100)
-        check_call(cmdl)
-        print('-' * 100)
-        print('')
-
+        self._run_cmd(cmdl, [input_fpath], output_fpath)
         self._check_file_throws(output_fpath)
 

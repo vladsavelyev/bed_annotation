@@ -177,8 +177,8 @@ def get_canonical_transcripts_ids(genome):
         short_genome = 'hg38'
     check_genome(short_genome)
 
-    canon_fpath = _get(join('ensembl', '{genome}', 'canon_transcripts_{genome}_ensembl.txt'), genome)
-    replacement_fpath = _get('canon_cancer_replacement.txt')
+    canon_fpath = _get_ensembl_file('canon_transcripts_{genome}_ensembl.txt', genome)
+    replacement_fpath = _get_ensembl_file('canon_cancer_replacement.txt')
 
     canon_fpath = verify_file(canon_fpath, description='Canonical transcripts path')
     replacement_fpath = verify_file(replacement_fpath, description='Canonical cancer transcripts replacement path')
