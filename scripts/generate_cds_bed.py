@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import bed_annotation as ebl
+import bed_annotation as ba
 import os
 import shutil
 from optparse import OptionParser, SUPPRESS_HELP
@@ -15,7 +15,7 @@ def main():
     options = [
         (['-g', '--genome'], dict(
             dest='genome',
-            help='Genome build. Accepted values: ' + ', '.join(ebl.SUPPORTED_GENOMES),
+            help='Genome build. Accepted values: ' + ', '.join(ba.SUPPORTED_GENOMES),
         )),
     ]
     parser = OptionParser()
@@ -28,13 +28,13 @@ def main():
     genome = opts.genome
 
     debug('Getting features from storage')
-    features_bed = ebl.get_all_features(genome)
+    features_bed = ba.get_all_features(genome)
     if features_bed is None:
-        critical('Genome ' + genome + ' is not supported. Supported: ' + ', '.join(ebl.SUPPORTED_GENOMES))
+        critical('Genome ' + genome + ' is not supported. Supported: ' + ', '.join(ba.SUPPORTED_GENOMES))
 
     info('Extracting features from Ensembl GTF')
-    features_bed = features_bed.filter(lambda x: x[ebl.BedCols.FEATURE] == 'CDS')
-    features_bed = features_bed.filter(ebl.get_only_canonical_filter(genome))
+    features_bed = features_bed.filter(lambda x: x[ba.BedCols.FEATURE] == 'CDS')
+    features_bed = features_bed.filter(ba.get_only_canonical_filter(genome))
 
     info('Saving CDS regions...')
     output_fpath = adjust_path(join(dirname(__file__), pardir, genome, 'bed', 'CDS-canonical.bed'))

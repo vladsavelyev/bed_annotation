@@ -46,6 +46,9 @@ setup(
     scripts=[
         join('scripts', script_name),
         join('scripts', 'extract_features'),
+        join('scripts', 'generate_cds_bed.py'),
+        join('scripts', 'generate_ensembl_data.py'),
+        join('scripts', 'generate_refseq_data.py'),
     ],
     install_requires=reqs,
     setup_requires=[],

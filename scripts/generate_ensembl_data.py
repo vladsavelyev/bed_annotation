@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import bed_annotation as ebl
+import bed_annotation as ba
 import csv
 import os
 import ngs_utils.reference_data as ref
@@ -34,7 +34,7 @@ Usage:
     if len(args) > 1:
         gtf_fpath = args[1]
     else:
-        gtf_fpath = ebl.ensembl_gtf_fpath(genome_name)
+        gtf_fpath = ba.ensembl_gtf_fpath(genome_name)
     if not isfile(gtf_fpath):
         if not gtf_fpath.endswith('.gz'):
             gtf_fpath += '.gz'
@@ -61,7 +61,7 @@ Usage:
     num_tx_not_in_biomart = 0
     num_tx_diff_gene_in_biomart = 0
     with open(unsorted_output_fpath, 'w') as out:
-        out.write('\t'.join(ebl.BedCols.names[i] for i in ebl.BedCols.cols[:-4]) + '\n')
+        out.write('\t'.join(ba.BedCols.names[i] for i in ba.BedCols.cols[:-4]) + '\n')
 
         for rec in db.all_features(order_by=('seqid', 'start', 'end')):
             if rec.featuretype == 'gene': continue
@@ -91,7 +91,7 @@ Usage:
                 tx_biotype = bm_tx_biotype
                 tsl = bm_tsl.split()[0].replace('tsl', '') if bm_tsl else None
 
-            fs = [None] * len(ebl.BedCols.cols[:-3])
+            fs = [None] * len(ba.BedCols.cols[:-3])
             if not rec.chrom.startswith('chr'):
                 rec.chrom = 'chr' + rec.chrom.replace('MT', 'M')
             fs[:6] = [rec.chrom,
@@ -100,13 +100,13 @@ Usage:
                       gname,
                       rec.attributes.get('exon_number', ['.'])[0],
                       rec.strand]
-            fs[ebl.BedCols.FEATURE] = rec.featuretype or '.'
-            fs[ebl.BedCols.BIOTYPE] = tx_biotype or '.'
-            fs[ebl.BedCols.ENSEMBL_ID] = tx_id or '.'
+            fs[ba.BedCols.FEATURE] = rec.featuretype or '.'
+            fs[ba.BedCols.BIOTYPE] = tx_biotype or '.'
+            fs[ba.BedCols.ENSEMBL_ID] = tx_id or '.'
             # fs[ebl.BedCols.REFSEQ_ID] = refseq_id or '.'
             # fs[ebl.BedCols.IS_CANONICAL] = 'canonical' if refseq_id in canonical_transcripts_ids else ''
-            fs[ebl.BedCols.TSL] = tsl or '.'
-            fs[ebl.BedCols.HUGO] = hugo_gene or '.'
+            fs[ba.BedCols.TSL] = tsl or '.'
+            fs[ba.BedCols.HUGO] = hugo_gene or '.'
             # fs[ebl.BedCols.names[ensembl.BedCols.GC]] = gc
             out.write('\t'.join(fs) + '\n')
 
@@ -139,7 +139,7 @@ Usage:
 
 def read_biomart(genome_name):
     features_by_ens_id = dict()
-    bm_fpath = ebl.biomart_fpath(genome_name)
+    bm_fpath = ba.biomart_fpath(genome_name)
     if not verify_file(bm_fpath):
         warn('Warning: biomart file for genome ' + genome_name + ' not found, skip using the TSL values')
         return dict()
@@ -150,7 +150,7 @@ def read_biomart(genome_name):
     
     # hg38 version has TSL, checking if we can populate some TSL from it
     if not genome_name.startswith('hg38'):
-        bm_fpath = ebl.biomart_fpath('hg38')
+        bm_fpath = ba.biomart_fpath('hg38')
         if not verify_file(bm_fpath): critical('Biomart for hg38 file not found, and needed for TSL values')
         with open(bm_fpath) as f:
             for r in csv.DictReader(f, delimiter='\t'):
