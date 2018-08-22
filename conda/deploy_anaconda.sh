@@ -4,6 +4,7 @@
 # >>> anaconda login
 # >>> anaconda auth -c -n travis --max-age 307584000 --url https://anaconda.org/USERNAME/PACKAGENAME --scopes "api:write api:read"
 set -e
+set -x
 
 echo "Converting conda package..."
 conda convert --platform all $HOME/miniconda/conda-bld/linux-64/${PACKAGENAME}-*.tar.bz2 --output-dir conda-bld/
