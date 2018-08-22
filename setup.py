@@ -10,8 +10,7 @@ name = 'bed_annotation'
 script_name = 'bed_annotation'
 package_name = 'bed_annotation'
 
-with open('VERSION.txt') as f:
-    version = f.read().strip().split('\n')[0]
+version = os.environ.get('TRAVIS_TAG', 'dev')
 
 with open('requirements.txt') as f:
     reqs = f.read().strip().split('\n')
