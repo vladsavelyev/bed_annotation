@@ -1,5 +1,6 @@
 # BED Annotation
 
+[![Build Status](https://travis-ci.org/vladsaveliev/bed_annotation.svg?branch=master)](https://travis-ci.org/vladsaveliev/bed_annotation)
 [![Anaconda-Server Badge](https://anaconda.org/vladsaveliev/bed_annotation/badges/installer/conda.svg)](https://conda.anaconda.org/vladsaveliev)
 
 A tool that assigns gene names to regions in a BED file based on Ensembl genomic features overlap.

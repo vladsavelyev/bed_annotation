@@ -6,6 +6,16 @@
 set -e
 set -x
 
+if [ -z $PACKAGE_NAME ] ; then
+    echo 'PACKAGE_NAME environment variable must be specified' >&2
+    exit 1
+fi
+
+if [ -z $ANACONDA_TOKEN ] ; then
+    echo 'ANACONDA_TOKEN environment variable must be specified' >&2
+    exit 1
+fi
+
 echo "Converting conda package..."
 conda convert --platform all $HOME/miniconda/conda-bld/linux-64/${PACKAGENAME}-*.tar.bz2 --output-dir conda-bld/
 
