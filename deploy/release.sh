@@ -6,7 +6,7 @@ if [ -z $VERSION ] ; then
     exit 1
 fi
 
-cat $VERSION > VERSION.txt
+echo $VERSION > VERSION.txt
 git add VERSION.txt
 git commit -m 'Bump version $VERSION'
 git tag $VERSION
