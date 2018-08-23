@@ -14,7 +14,7 @@ conda install -c vladsaveliev bed_annotation
 ### Usage
 
 ```
-annotate_bed.py INPUT.bed -g hg19 -o OUTPUT.bed
+bed_annotation INPUT.bed -g hg19 -o OUTPUT.bed
 ``` 
 
 The script checks each BED region against the Ensembl genomic features database, and writes a BED file in a standardized format with a gene symbol, strand and exon rank in 4-6th columns:
@@ -52,7 +52,7 @@ The piority for choosing transcripts for annotation is the following:
 Use `--extended` option to report extra columns with details on features, biotype, overlapping transcripts and overlap sizes:
 
 ```
-annotate_bed.py INPUT.bed -g hg19 -o OUTPUT.bed --extended
+bed_annotation INPUT.bed -g hg19 -o OUTPUT.bed --extended
 ```
 
 `OUTPUT.bed`:
@@ -79,7 +79,7 @@ Regions may overlap mltiple genes. The `--ambiguities` controls how the script r
 Note that the first 4 options might output multiple lines per region, e.g.:
 
 ```
-annotate_bed.py INPUT.bed -g hg19 -o OUTPUT.bed --extended --ambiguities best_all
+bed_annotation INPUT.bed -g hg19 -o OUTPUT.bed --extended --ambiguities best_all
 ```
 
 `OUTPUT.bed`:
