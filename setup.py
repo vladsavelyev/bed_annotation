@@ -1,21 +1,17 @@
 #!/usr/bin/env python
+import os
+from os.path import join
 import sys
+from setuptools import setup, find_packages
+
 py_v = sys.version_info[:2]
 if py_v < (3, 6):
     sys.exit('Only Python 3.6 and higher are supported. Current version: ' + '.'.join(py_v))
 
-from os.path import join
+name = script_name = package_name = 'bed_annotation'
 
-name = 'bed_annotation'
-script_name = 'bed_annotation'
-package_name = 'bed_annotation'
+version = os.environ.get('TRAVIS_TAG') or 'dev'
 
-version = os.environ.get('TRAVIS_TAG', 'dev')
-
-with open('requirements.txt') as f:
-    reqs = f.read().strip().split('\n')
-
-from setuptools import setup, find_packages
 setup(
     name=name,
     version=version,
@@ -49,7 +45,7 @@ setup(
         join('scripts', 'generate_ensembl_data.py'),
         join('scripts', 'generate_refseq_data.py'),
     ],
-    install_requires=reqs,
+    install_requires=open('requirements.txt').read().strip().split('\n'),
     setup_requires=[],
     classifiers=[
         'Environment :: Console',
