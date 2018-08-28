@@ -6,7 +6,7 @@ python:
   - "3.6"
 
 before_install:
-  - export PACKAGENAME=bed_annotation
+  - export PACKAGE_NAME=bed_annotation
   # Get and install anaconda (https://conda.io/docs/travis.html)
   - wget -nv https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
@@ -21,8 +21,8 @@ before_install:
 install:
   - conda install -q python=$TRAVIS_PYTHON_VERSION pip requests conda-build jinja2 anaconda-client
   # Building package
-  - conda build -c vladsaveliev -c bioconda -c conda-forge deploy/conda_package/${PACKAGENAME}
-  - conda install -c vladsaveliev -c bioconda -c conda-forge --use-local ${PACKAGENAME}
+  - conda build -c vladsaveliev -c bioconda -c conda-forge deploy/conda_package/${PACKAGE_NAME}
+  - conda install -c vladsaveliev -c bioconda -c conda-forge --use-local ${PACKAGE_NAME}
 
 script:
   - nosetests --nocapture tests/test.py
