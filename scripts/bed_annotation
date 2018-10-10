@@ -33,7 +33,7 @@ from ngs_utils.logger import debug
               help='Use only protein coding genes to annotate')
 @click.option('--collapse-exons', is_flag=True)
 @click.option('--work-dir', default=None, type=click.Path())
-@click.option('-d', '--debug', '--is-debug', is_flag=True)
+@click.option('-d', '--debug', '--is-debug', 'is_debug', is_flag=True)
 def main(input_bed, output_file, output_features=False, genome=None,
          only_canonical=False, short=False, extended=False, high_confidence=False,
          ambiguities_method=False, coding_only=False, collapse_exons=False,
