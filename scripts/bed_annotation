@@ -19,14 +19,18 @@ from ngs_utils.logger import debug
 @click.argument('input_bed', type=click.Path(exists=True))
 @click.option('-o', '--output-file', type=click.Path(), help='Output file path')
 @click.option('--output-features', is_flag=True, help='Also output featues that was used to annotate')
-@click.option('-g', 'genome', default='GRCh37', type=click.Choice(ba.SUPPORTED_GENOMES), help='Genome build')
-@click.option('--canonical', '--only-canonical', is_flag=True, help='Use only features from canonical transcripts to annotate')
+@click.option('-g', '--genome', default='GRCh37', type=click.Choice(ba.SUPPORTED_GENOMES), help='Genome build')
+@click.option('--canonical', '--only-canonical', 'only_canonical', is_flag=True,
+              help='Use only features from canonical transcripts to annotate')
 @click.option('--short', is_flag=True, help='Add only "Gene" column (outputa 4-col BED file instead of 6-col)')
 @click.option('-e', '--extended', is_flag=True, help='Output additional columns: transcript, GC, overlap size...')
-@click.option('--high-confidence', is_flag=True, help='Annotate with only high confidence regions (TSL is 1 or NA, with HUGO symbol, total overlap size > 50%)')
-@click.option('-a', '--ambiguities', '--ambiguities-method', type=click.Choice(['best_one', 'best_ask', 'best_all', 'all_ask', 'all']), default='best_all',
+@click.option('--high-confidence', is_flag=True, help='Annotate with only high confidence regions (TSL is 1 or NA, '
+                                                      'with HUGO symbol, total overlap size > 50%)')
+@click.option('-a', '--ambiguities', '--ambiguities-method', 'ambiguities_method',
+              type=click.Choice(['best_one', 'best_ask', 'best_all', 'all_ask', 'all']), default='best_all',
               help='How to resolve ambuguios overlaps with reliable transcripts for a single region')
-@click.option('--coding', '--coding-only', is_flag=True, help='Use only protein coding genes to annotate')
+@click.option('--coding', '--coding-only', 'coding_only', is_flag=True,
+              help='Use only protein coding genes to annotate')
 @click.option('--collapse-exons', is_flag=True)
 @click.option('--work-dir', default=None, type=click.Path())
 @click.option('-d', '--debug', '--is-debug', is_flag=True)
@@ -42,14 +46,17 @@ def main(input_bed, output_file, output_features=False, genome=None,
         raise click.BadParameter('Error: please, specify genome build name with -g (e.g. `-g hg19`)', param='genome')
 
     if short:
-        if extended:        raise click.BadParameter('--short and --extended can\'t be set both', param='extended')
-        if output_features: raise click.BadParameter('--short and --output-features can\'t be set both', param='output_features')
+        if extended:
+            raise click.BadParameter('--short and --extended can\'t be set both', param='extended')
+        if output_features:
+            raise click.BadParameter('--short and --output-features can\'t be set both', param='output_features')
     elif output_features or extended:
         extended = True
-        short    = False
+        short = False
 
     if not verify_file(input_bed):
-        click.BadParameter(f'Usage: {__file__} Input_BED_file -g hg19 -o Annotated_BED_file [options]', param='input_bed')
+        click.BadParameter(f'Usage: {__file__} Input_BED_file -g hg19 -o Annotated_BED_file [options]',
+                           param='input_bed')
     input_bed = verify_file(input_bed, is_critical=True, description=f'Input BED file for {__file__}')
 
     if work_dir:
