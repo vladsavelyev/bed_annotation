@@ -27,13 +27,12 @@ setup(
         package_name: [
             'ensembl/hg19/ensembl.bed.gz',
             'ensembl/hg19/ensembl.bed.gz.tbi',
-            'ensembl/hg19/canon_transcripts_hg19_ensembl.txt',
+            'ensembl/hg19/appris_data.principal.txt',
             'ensembl/hg38/ensembl.bed.gz',
             'ensembl/hg38/ensembl.bed.gz.tbi',
-            'ensembl/hg38/canon_transcripts_hg38_ensembl.txt',
+            'ensembl/hg38/appris_data.principal.txt',
             'ensembl/mm10/ensembl.bed.gz',
             'ensembl/mm10/ensembl.bed.gz.tbi',
-            'ensembl/canon_cancer_replacement.txt',
         ]
     },
     include_package_data=True,

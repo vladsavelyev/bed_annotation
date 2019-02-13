@@ -177,7 +177,7 @@ def _get_ensembl_file(fname, genome=None):
 # cd hg38
 # wget http://apprisws.bioinfo.cnio.es/pub/releases/2018_12.v28/datafiles/homo_sapiens/GRCh38/appris_data.principal.txt
 
-def canon_transcript_per_gene(genome, only_principal=False):
+def canon_transcript_per_gene(genome, only_principal=False, use_gene_id=True):
     """
     Returns a dict of lists: all most confident transcripts per gene according to APPRIS:
     first one in list is PRINCIPAL, the rest are ALTERNATIVE
@@ -197,11 +197,11 @@ def canon_transcript_per_gene(genome, only_principal=False):
     alt_per_gene = defaultdict(list)
     with open(fpath) as f:
         for l in f:
-            gene, _, enst, ccds, label = l.strip.split()
+            gene, geneid, enst, ccds, label = l.strip().split('\t')
             if 'PRINCIPAL' in label:
-                princ_per_gene[gene] = enst
+                princ_per_gene[geneid if use_gene_id else gene] = enst
             elif not only_principal and 'ALTERNATIVE' in label:
-                alt_per_gene[gene].append(enst)
+                alt_per_gene[geneid if use_gene_id else gene].append(enst)
 
     if only_principal:
         return princ_per_gene
