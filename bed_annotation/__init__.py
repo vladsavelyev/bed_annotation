@@ -1,5 +1,6 @@
 import os
 import sys
+from collections import defaultdict
 from os.path import dirname, join, abspath, isfile, pardir
 from pybedtools import BedTool
 from ngs_utils.file_utils import which, open_gzipsafe, verify_file
@@ -169,7 +170,19 @@ def _get_ensembl_file(fname, genome=None):
 ###################
 ### TRANSCRIPTS ###
 ###################
-def get_canonical_transcripts_ids(genome):
+# APPRIS principal isoforms
+# Download:
+# cd hg19
+# wget http://apprisws.bioinfo.cnio.es/pub/releases/2018_12.v28/datafiles/homo_sapiens/GRCh37/appris_data.principal.txt
+# cd hg38
+# wget http://apprisws.bioinfo.cnio.es/pub/releases/2018_12.v28/datafiles/homo_sapiens/GRCh38/appris_data.principal.txt
+
+def canon_transcript_per_gene(genome, only_principal=False):
+    """
+    Returns a dict of lists: all most confident transcripts per gene according to APPRIS:
+    first one in list is PRINCIPAL, the rest are ALTERNATIVE
+    If only_principal=True, returns a dict of str, which just one transcript per gene (PRINCIPAL)
+    """
     short_genome = genome.split('-')[0]
     if short_genome.startswith('GRCh37'):
         short_genome = 'hg19'
@@ -177,22 +190,23 @@ def get_canonical_transcripts_ids(genome):
         short_genome = 'hg38'
     check_genome(short_genome)
 
-    canon_fpath = _get_ensembl_file('canon_transcripts_{genome}_ensembl.txt', genome)
-    replacement_fpath = _get_ensembl_file('canon_cancer_replacement.txt')
+    fpath = _get_ensembl_file('appris_data.principal.txt', short_genome)
+    fpath = verify_file(fpath, is_critical=True, description='APPRIS file path')
 
-    canon_fpath = verify_file(canon_fpath, is_critical=True, description='Canonical transcripts path')
-    replacement_fpath = verify_file(replacement_fpath, is_critical=True, description='Canonical cancer transcripts replacement path')
+    princ_per_gene = dict()
+    alt_per_gene = defaultdict(list)
+    with open(fpath) as f:
+        for l in f:
+            gene, _, enst, ccds, label = l.strip.split()
+            if 'PRINCIPAL' in label:
+                princ_per_gene[gene] = enst
+            elif not only_principal and 'ALTERNATIVE' in label:
+                alt_per_gene[gene].append(enst)
 
-    if not canon_fpath:
-        return None
-    with open(canon_fpath) as f:
-        canon_tx_by_gname = dict(l.strip('\n').split('\t') for l in f)
-    if replacement_fpath:
-        with open(replacement_fpath) as f:
-            for gname, tx_id in (l.strip('\n').split('\t') for l in f):
-                canon_tx_by_gname[gname] = tx_id
-
-    return canon_tx_by_gname
+    if only_principal:
+        return princ_per_gene
+    else:
+        return {g: [t] + alt_per_gene[g] for g, t in princ_per_gene.items()}
 
 
 def _get(relative_path, genome=None):
@@ -238,9 +252,9 @@ def high_confidence_filter(x):
     return x[BedCols.TSL] in ['1', '2', 'NA', '.', None] and x[BedCols.HUGO] not in ['', '.', None]
 
 def get_only_canonical_filter(genome):
-    canon_tx_by_gname = get_canonical_transcripts_ids(genome)
-    return lambda x: x[BedCols.ENSEMBL_ID] == canon_tx_by_gname.get(x[BedCols.HUGO]) or \
-                     x[BedCols.ENSEMBL_ID] == canon_tx_by_gname.get(x[BedCols.GENE])
+    transcript_per_gene = canon_transcript_per_gene(genome, only_principal=True)
+    return lambda x: x[BedCols.ENSEMBL_ID] == transcript_per_gene.get(x[BedCols.HUGO]) or \
+                     x[BedCols.ENSEMBL_ID] == transcript_per_gene.get(x[BedCols.GENE])
 
 def protein_coding_filter(x):
     return x[BedCols.BIOTYPE] == 'protein_coding'
