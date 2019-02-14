@@ -25,6 +25,7 @@ install:
   - conda install -c vladsaveliev -c bioconda -c conda-forge --use-local ${PACKAGE_NAME}
 
 script:
+  - bed_annotation --help
   - nosetests --nocapture tests/test.py
 
 deploy:

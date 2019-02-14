@@ -425,9 +425,9 @@ def _annotate(bed, ref_bed, chr_order, fai_fpath, work_dir, ori_col_num,
     for i, intersection_fields in enumerate(intersection_bed):
         inters_fields_list = list(intersection_fields)
         if len(inters_fields_list) < expected_fields_num:
-            critical(f'Cannot parse the reference BED file - unexpected number of lines '
-                     '({len(inters_fields_list} in {inters_fields_list}' +
-                     ' (less than {expected_fields_num})')
+            critical(
+                f'Cannot parse the reference BED file - unexpected number of lines '
+                f'({len(inters_fields_list)} in {inters_fields_list} (less than {expected_fields_num})')
 
         a_chr, a_start, a_end = intersection_fields[:3]
         a_extra_columns = intersection_fields[3:ori_col_num]
