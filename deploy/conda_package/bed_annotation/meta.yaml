@@ -25,11 +25,11 @@ about:
 
 requirements:
   build:
-    - python ==3.6
+    - python ==3.7
     - numpy
     - ngs_utils
   run:
-    - python ==3.6
+    - python ==3.7
     - bedtools >=2.25
     - pybedtools
     - cython
