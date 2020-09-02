@@ -9,3 +9,4 @@ joblib
 gffutils
 click
 ngs_utils
+versionpy

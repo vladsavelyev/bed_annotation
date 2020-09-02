@@ -3,6 +3,7 @@ import os
 from os.path import join
 import sys
 from setuptools import setup, find_packages
+import versionpy
 
 py_v = sys.version_info[:2]
 if py_v < (3, 6):
@@ -10,12 +11,12 @@ if py_v < (3, 6):
 
 name = script_name = package_name = 'bed_annotation'
 
-version = os.environ.get('TRAVIS_TAG') or 'dev'
+version = versionpy.get_version(package_name)
 
 setup(
     name=name,
     version=version,
-    author='Vlad Saveliev and Alla Mikheenko',
+    author='Vlad Savelyev and Alla Mikheenko',
     author_email='vladislav.sav@gmail.com',
     description='Genome capture target coverage evaluation tool',
     long_description=(open('README.md').read()),
