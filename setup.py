@@ -1,21 +1,17 @@
 #!/usr/bin/env python
-import os
 from os.path import join
 import sys
 from setuptools import setup, find_packages
-import versionpy
 
 py_v = sys.version_info[:2]
-if py_v < (3, 6):
-    sys.exit('Only Python 3.6 and higher are supported. Current version: ' + '.'.join(py_v))
+if py_v < (3, 6) or py_v > (3, 10):
+    sys.exit('Python versions 3.6 through 3.10 are supported. Current version: ' + '.'.join(py_v))
 
 name = script_name = package_name = 'bed_annotation'
 
-version = versionpy.get_version(package_name)
-
 setup(
     name=name,
-    version=version,
+    version='1.2.0',
     author='Vlad Savelyev and Alla Mikheenko',
     author_email='vladislav.sav@gmail.com',
     description='Genome capture target coverage evaluation tool',
@@ -34,7 +30,16 @@ setup(
             'ensembl/hg38/appris_data.principal.txt',
             'ensembl/mm10/ensembl.bed.gz',
             'ensembl/mm10/ensembl.bed.gz.tbi',
-        ]
+        ],
+        'ngs_utils': [
+            'reference_data/fai/GRCh37.fa.fai',
+            'reference_data/fai/hg19.fa.fai',
+            'reference_data/fai/hg19-noalt.fa.fai',
+            'reference_data/fai/hg19-chr21.fa.fai',
+            'reference_data/fai/hg38.fa.fai',
+            'reference_data/fai/hg38-noalt.fa.fai',
+            'reference_data/fai/mm10.fa.fai',
+        ],
     },
     include_package_data=True,
     zip_safe=False,
@@ -45,8 +50,16 @@ setup(
         join('scripts', 'generate_ensembl_data.py'),
         join('scripts', 'generate_refseq_data.py'),
     ],
-    install_requires=open('requirements.txt').read().strip().split('\n'),
-    setup_requires=[],
+    install_requires=[
+        'pip',
+        'setuptools>=18.5',
+        'pybedtools',
+        'cython',
+        'numpy',
+        'joblib',
+        'gffutils',
+        'click',
+    ],
     classifiers=[
         'Environment :: Console',
         'Environment :: Web Environment',

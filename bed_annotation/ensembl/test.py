@@ -14,9 +14,9 @@ def run(args, fname, suf):
         os.rename(output_fpath, prev_output_fpath)
 
     cmdl = script + ' ' + fpath + ' ' + args + ' -o ' + output_fpath
-    print cmdl
+    print(cmdl)
     os.system(cmdl)
-    print ''
+    print('')
 
     if prev_output_fpath:
         os.system('diff ' + prev_output_fpath + ' ' + output_fpath)

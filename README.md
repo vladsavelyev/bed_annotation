@@ -5,10 +5,14 @@
 
 A tool that assigns gene names to regions in a BED file based on Ensembl genomic features overlap.
 
+### Requirements
+
+Python 3.6, 3.7, 3.8, 3.9, 3.10.
+
 ### Installation
 
 ```
-conda install -c vladsaveliev bed_annotation
+pip install bed_annotation
 ```
 
 ### Usage

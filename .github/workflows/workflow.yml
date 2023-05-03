@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9. 3.10]
     steps:
       - uses: actions/checkout@master
 
@@ -25,7 +25,7 @@ jobs:
           conda install -c conda-forge mamba "python==${{ matrix.python-version }}.*"
           mamba update conda
           conda config --add channels vladsaveliev --add channels bioconda --add channels conda-forge
-          mamba install pip versionpy conda-build conda-verify anaconda-client
+          mamba install pip conda-build conda-verify anaconda-client
 
       - name: Build package
         run: |

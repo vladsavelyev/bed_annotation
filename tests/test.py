@@ -1,7 +1,8 @@
 import os
-from os.path import dirname, join, exists, isfile, splitext, basename, isdir, relpath
-from ngs_utils.testing import BaseTestCase, swap_output, check_call
+from os.path import dirname, join
+
 from ngs_utils.file_utils import add_suffix
+from ngs_utils.testing import BaseTestCase
 
 
 class AnnotateBedTests(BaseTestCase):

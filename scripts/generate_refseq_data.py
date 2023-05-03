@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 
-from collections import defaultdict, OrderedDict
 import sys
+from collections import defaultdict, OrderedDict
 from optparse import OptionParser
-from os.path import join, dirname
+from os.path import join
 from traceback import format_exc
 
 import bed_annotation as ba
-from ngs_utils.bed_utils import bgzip_and_tabix, SortableByChrom
-from ngs_utils.file_utils import adjust_path, verify_file, open_gzipsafe, add_suffix, verify_dir
-from ngs_utils.logger import err, info, critical, debug
 import ngs_utils.reference_data as ref
-
+from ngs_utils.bed_utils import bgzip_and_tabix, SortableByChrom
+from ngs_utils.file_utils import adjust_path, verify_file, open_gzipsafe
+from ngs_utils.logger import err, info, critical
 
 ALL_EXONS = True
 # MIR_AND_CDS_ONLY = False

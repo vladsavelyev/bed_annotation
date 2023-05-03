@@ -1,5 +1,4 @@
 pip
-six
 setuptools>=18.5
 pybedtools
 nose
@@ -8,5 +7,3 @@ numpy
 joblib
 gffutils
 click
-ngs_utils
-versionpy

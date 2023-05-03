@@ -1,12 +1,12 @@
 import os
 import sys
-from collections import defaultdict
-from os.path import dirname, join, abspath, isfile
+from os.path import dirname, join, abspath, isfile, pardir
 from pybedtools import BedTool
-from ngs_utils.file_utils import which, verify_file
+from ngs_utils.file_utils import which, open_gzipsafe, verify_file
 from ngs_utils.logger import debug, critical
 
-SUPPORTED_GENOMES = ['GRCh37', 'hg19', 'hg19-noalt', 'hg38', 'hg38-noalt', 'mm10', 'hg19-chr21']
+
+SUPPORTED_GENOMES = ['GRCh37', 'hg19', 'hg19-noalt', 'hg38', 'hg38-noalt', 'mm10']
 
 class BedCols:
     CHROM, \
@@ -22,9 +22,8 @@ class BedCols:
     HUGO, \
     TX_OVERLAP_PERCENTAGE, \
     EXON_OVERLAPS_PERCENTAGE, \
-    CDS_OVERLAPS_PERCENTAGE, \
-    ORIGINAL_FIELDS \
-        = cols = range(15)
+    CDS_OVERLAPS_PERCENTAGE \
+        = cols = range(14)
 
     names = {
         CHROM: '#Chrom',
@@ -43,12 +42,12 @@ class BedCols:
         # EXON_OVERLAPS_BASES: 'Exon_overlaps_bp',
         EXON_OVERLAPS_PERCENTAGE: 'Exon_overlaps_%',
         CDS_OVERLAPS_PERCENTAGE: 'CDS_overlaps_%',
-        ORIGINAL_FIELDS: 'Ori_Fields',
     }
 
 def check_genome(genome):
     if genome not in SUPPORTED_GENOMES:
-        sys.stdout.write('Genome ' + genome + ' is not supported. Supported genomes: ' + ', '.join(SUPPORTED_GENOMES) + '\n')
+        sys.stdout.write('Genome ' + genome + ' is not supported. Supported genomes: ' + 
+                         ', '.join(SUPPORTED_GENOMES) + '\n')
         sys.exit(1)
 
 #################
@@ -162,51 +161,39 @@ def biomart_fpath(genome='hg38'):
 
 def _get_ensembl_file(fname, genome=None):
     if genome:
-        return _get(join('ensembl', genome.split('-')[0], fname), genome)
+        return _get(join(genome.split('-')[0], fname), genome)
     else:
-        return _get(join('ensembl', fname))
+        return _get(join(fname))
 
 
 ###################
 ### TRANSCRIPTS ###
 ###################
-# APPRIS principal isoforms
-# Download:
-# cd hg19
-# wget http://apprisws.bioinfo.cnio.es/pub/releases/2018_12.v28/datafiles/homo_sapiens/GRCh37/appris_data.principal.txt
-# cd hg38
-# wget http://apprisws.bioinfo.cnio.es/pub/releases/2018_12.v28/datafiles/homo_sapiens/GRCh38/appris_data.principal.txt
-
-def canon_transcript_per_gene(genome, only_principal=False, use_gene_id=False):
-    """
-    Returns a dict of lists: all most confident transcripts per gene according to APPRIS:
-    first one in list is PRINCIPAL, the rest are ALTERNATIVE
-    If only_principal=True, returns a dict of str, which just one transcript per gene (PRINCIPAL)
-    """
+def get_canonical_transcripts_ids(genome):
     short_genome = genome.split('-')[0]
     if short_genome.startswith('GRCh37'):
         short_genome = 'hg19'
     if short_genome.startswith('GRCh38'):
         short_genome = 'hg38'
     check_genome(short_genome)
+    genome = short_genome
 
-    fpath = _get_ensembl_file('appris_data.principal.txt', short_genome)
-    fpath = verify_file(fpath, is_critical=True, description='APPRIS file path')
+    canon_fpath = _get(join('{genome}', 'canon_transcripts_{genome}_ensembl.txt'), genome)
+    replacement_fpath = _get('canon_cancer_replacement.txt')
 
-    princ_per_gene = dict()
-    alt_per_gene = defaultdict(list)
-    with open(fpath) as f:
-        for l in f:
-            gene, geneid, enst, ccds, label = l.strip().split('\t')
-            if 'PRINCIPAL' in label:
-                princ_per_gene[geneid if use_gene_id else gene] = enst
-            elif not only_principal and 'ALTERNATIVE' in label:
-                alt_per_gene[geneid if use_gene_id else gene].append(enst)
+    canon_fpath = verify_file(canon_fpath, description='Canonical transcripts path')
+    replacement_fpath = verify_file(replacement_fpath, description='Canonical cancer transcripts replacement path')
 
-    if only_principal:
-        return princ_per_gene
-    else:
-        return {g: [t] + alt_per_gene[g] for g, t in princ_per_gene.items()}
+    if not canon_fpath:
+        return None
+    with open(canon_fpath) as f:
+        canon_tx_by_gname = dict(l.strip('\n').split('\t') for l in f)
+    if replacement_fpath:
+        with open(replacement_fpath) as f:
+            for gname, tx_id in (l.strip('\n').split('\t') for l in f):
+                canon_tx_by_gname[gname] = tx_id
+
+    return canon_tx_by_gname
 
 
 def _get(relative_path, genome=None):
@@ -245,16 +232,13 @@ def _get(relative_path, genome=None):
     else:
         return path
 
-def get_hgnc_gene_synonyms():
-    return _get('HGNC_gene_synonyms.txt')
-
 def high_confidence_filter(x):
     return x[BedCols.TSL] in ['1', '2', 'NA', '.', None] and x[BedCols.HUGO] not in ['', '.', None]
 
 def get_only_canonical_filter(genome):
-    transcript_per_gene = canon_transcript_per_gene(genome, only_principal=True)
-    return lambda x: x[BedCols.ENSEMBL_ID] == transcript_per_gene.get(x[BedCols.HUGO]) or \
-                     x[BedCols.ENSEMBL_ID] == transcript_per_gene.get(x[BedCols.GENE])
+    canon_tx_by_gname = get_canonical_transcripts_ids(genome)
+    return lambda x: x[BedCols.ENSEMBL_ID] == canon_tx_by_gname.get(x[BedCols.HUGO]) or \
+                     x[BedCols.ENSEMBL_ID] == canon_tx_by_gname.get(x[BedCols.GENE])
 
 def protein_coding_filter(x):
     return x[BedCols.BIOTYPE] == 'protein_coding'

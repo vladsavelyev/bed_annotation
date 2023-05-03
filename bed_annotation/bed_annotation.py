@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
-import bed_annotation as ba
-import os
+from collections import defaultdict
+from os.path import isfile, join
+
 import pybedtools
-from collections import defaultdict, OrderedDict
-from os.path import isfile, join, basename
 from pybedtools import BedTool
-from ngs_utils.bed_utils import verify_bed, SortableByChrom, count_bed_cols, sort_bed, clean_bed
+
+import bed_annotation as ba
 from ngs_utils import reference_data
-from ngs_utils.file_utils import file_transaction, adjust_path, safe_mkdir, verify_file, tx_tmpdir
+from ngs_utils.bed_utils import SortableByChrom, count_bed_cols, sort_bed
+from ngs_utils.file_utils import file_transaction, safe_mkdir
 from ngs_utils.logger import critical, info
 from ngs_utils.logger import debug
 from ngs_utils.utils import OrderedDefaultDict
